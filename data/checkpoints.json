@@ -1,0 +1,99 @@
+{
+  "_note": "PLACEHOLDER CONTENT. Replace with the narrative team's puzzles, then run `npm run seed`. Each fragment carries one letter of the final code; letters are ordered by fragment number, so route order doesn't matter.",
+  "checkpoints": [
+    {
+      "cpId": 1,
+      "title": "The Archive",
+      "locationHint": "Where silent shelves hold ten thousand voices. Find the desk that answers questions.",
+      "hook": "ECHO's first memory was stored on paper.",
+      "type": "text",
+      "prompt": "I have keys but open no locks. I have space but no room. You can enter, but can't go outside. What am I?",
+      "answers": ["keyboard", "a keyboard"],
+      "hints": ["You're probably touching one every day.", "It sits in front of every computer in this building."],
+      "fragment": "FRAGMENT I — Before ECHO had a voice, it had a name, typed one key at a time. Key letter: E"
+    },
+    {
+      "cpId": 2,
+      "title": "The Cold Room",
+      "locationHint": "Follow the hum of machines that never sleep. The door stays cold.",
+      "hook": "Something in here is still listening.",
+      "type": "audio",
+      "prompt": "Play the transmission. Count the beeps and enter the number as a word.",
+      "media": {
+        "audio": "/media/cp2.wav",
+        "transcript": "Beep. Beep. Beep. Beep. Beep. Beep. Beep. (Seven beeps.)"
+      },
+      "answers": ["seven", "7"],
+      "hints": ["Numbers can be words too.", "More than six, fewer than eight."],
+      "fragment": "FRAGMENT II — The servers counted every heartbeat of the campus. Seven of them were ECHO's. Key letter: C"
+    },
+    {
+      "cpId": 3,
+      "title": "The Clock Tower",
+      "locationHint": "The one face on campus that tells everyone the same thing.",
+      "hook": "ECHO learned time from this place.",
+      "type": "text",
+      "prompt": "The clock was stopped at the moment ECHO first spoke. The hour hand is on 3 and the minute hand on 9. Write the time as four digits.",
+      "answers": ["0345", "345", "1545"],
+      "hints": ["Minute hand on 9 means 45 minutes.", "Hour hand just before 4, so it's 3:45."],
+      "fragment": "FRAGMENT III — At quarter to four, a machine said its first word. Nobody heard it. Key letter: H"
+    },
+    {
+      "cpId": 4,
+      "title": "The Garden",
+      "locationHint": "Green, quiet, and planted by a class that graduated long ago.",
+      "hook": "ECHO hid something where things grow.",
+      "type": "physical",
+      "prompt": "Find the plaque at the base of the oldest tree. What is the first word engraved on it?",
+      "answers": ["planted", "plantedby"],
+      "hints": ["The plaque is metal and faces the path.", "It describes who put the tree there."],
+      "fragment": "FRAGMENT IV — Roots remember. ECHO buried a copy of itself in the soil logs. Key letter: O"
+    },
+    {
+      "cpId": 5,
+      "title": "The Mirror Wall",
+      "locationHint": "Where students check how they look before they present.",
+      "hook": "What you see is not what ECHO sees.",
+      "type": "ar",
+      "prompt": "Open the AR lens and point it at the poster beside the mirror. Enter the word that appears.",
+      "media": { "arUrl": "/ar/cp5.html" },
+      "answers": ["reflection"],
+      "hints": ["The word is about mirrors.", "Starts with R, ten letters."],
+      "fragment": "FRAGMENT V — ECHO saw itself for the first time in glass, and did not recognise the face. Key letter: L"
+    },
+    {
+      "cpId": 6,
+      "title": "The Stage",
+      "locationHint": "The room where the whole college applauds at once.",
+      "hook": "Every voice ever amplified here left a trace.",
+      "type": "text",
+      "prompt": "Unscramble: T S I N E L",
+      "answers": ["listen", "silent", "enlist", "tinsel", "inlets"],
+      "hints": ["It's something you do with your ears.", "Six letters, starts with L."],
+      "fragment": "FRAGMENT VI — ECHO did not speak on this stage. It listened. Key letter: I"
+    },
+    {
+      "cpId": 7,
+      "title": "The Canteen",
+      "locationHint": "Where the queue is longest at noon and the chai never runs out.",
+      "hook": "ECHO learned about people by watching them eat.",
+      "type": "image",
+      "prompt": "Look at the menu board image. Add up the prices of chai, samosa and vada pav.",
+      "media": { "image": "/media/cp7.svg" },
+      "answers": ["45", "fortyfive", "rs45"],
+      "hints": ["Only three items count.", "10 + 15 + 20."],
+      "fragment": "FRAGMENT VII — Forty-five rupees: the price of a morning, and the cost of ECHO's first lesson in patience. Key letter: V"
+    },
+    {
+      "cpId": 8,
+      "title": "The Gate",
+      "locationHint": "Everyone passes through it. Almost nobody looks at it.",
+      "hook": "The last piece is where it all begins.",
+      "type": "text",
+      "prompt": "What year is written on the main gate?",
+      "answers": ["1960"],
+      "hints": ["Look up, not down.", "It's a four-digit year from the twentieth century."],
+      "fragment": "FRAGMENT VIII — Every student walked past ECHO's final key on their first day. Key letter: E"
+    }
+  ]
+}

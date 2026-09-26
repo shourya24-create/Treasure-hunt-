@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ECHO AR lens</title>
+    <!--
+      PLACEHOLDER. The real lens is a standalone MindAR + A-Frame page, kept
+      outside the React app so AR failing can't take the game down.
+
+      To build it:
+        1. Compile the poster image into targets.mind with the MindAR image
+           compiler (https://hiukim.github.io/mind-ar-js-doc/tools/compile).
+        2. Put targets.mind next to this file.
+        3. Replace the body below with:
+             <script src="https://cdn.jsdelivr.net/npm/aframe@1.5.0/dist/aframe-master.min.js"></script>
+             <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+             <a-scene mindar-image="imageTargetSrc: ./targets.mind" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+               <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+               <a-entity mindar-image-target="targetIndex: 0">
+                 <a-text value="…" align="center" color="#4ade80" width="2"></a-text>
+               </a-entity>
+             </a-scene>
+      Note: whatever word the lens shows is readable in this static file's
+      source. Show a word that still needs a step to become the answer.
+    -->
+    <style>
+      body { margin: 0; min-height: 100dvh; display: grid; place-items: center; background: #0b0d10; color: #e8ecf1; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; padding: 16px; box-sizing: border-box; }
+      a { color: #4ade80; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p style="color:#4ade80">&gt; AR lens offline.</p>
+      <p>This lens hasn't been built yet. Ask a volunteer for the backup card.</p>
+      <p><a href="/play">← Back to ECHO</a></p>
+    </main>
+  </body>
+</html>

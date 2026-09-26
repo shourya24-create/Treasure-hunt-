@@ -1,0 +1,40 @@
+{
+  "name": "echo-protocol-hunt",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "db:local": "tsx scripts/local-db.ts",
+    "seed": "tsx --env-file=.env.local scripts/seed.ts",
+    "qr": "tsx --env-file=.env.local scripts/make-qr.ts",
+    "playtest": "tsx --env-file=.env.local scripts/playtest.ts",
+    "loadtest": "tsx --env-file=.env.local scripts/loadtest.ts"
+  },
+  "dependencies": {
+    "jose": "^5.10.0",
+    "mongoose": "^8.24.4",
+    "next": "14.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "autoprefixer": "^10.6.1",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "14.2",
+    "mongodb-memory-server": "^11.3.0",
+    "postcss": "^8.5.28",
+    "qrcode": "^1.5.4",
+    "tailwindcss": "^3.4.19",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" font-family="monospace">
+  <rect width="400" height="300" fill="#1d2b22"/>
+  <rect x="10" y="10" width="380" height="280" fill="none" stroke="#e8e2c8" stroke-width="3"/>
+  <text x="200" y="50" fill="#e8e2c8" font-size="26" text-anchor="middle">CANTEEN MENU</text>
+  <g fill="#e8e2c8" font-size="20">
+    <text x="40" y="100">Chai</text><text x="360" y="100" text-anchor="end">Rs 10</text>
+    <text x="40" y="135">Coffee</text><text x="360" y="135" text-anchor="end">Rs 20</text>
+    <text x="40" y="170">Samosa</text><text x="360" y="170" text-anchor="end">Rs 15</text>
+    <text x="40" y="205">Vada Pav</text><text x="360" y="205" text-anchor="end">Rs 20</text>
+    <text x="40" y="240">Sandwich</text><text x="360" y="240" text-anchor="end">Rs 40</text>
+  </g>
+  <text x="200" y="278" fill="#8b95a3" font-size="12" text-anchor="middle">PLACEHOLDER IMAGE</text>
+</svg>

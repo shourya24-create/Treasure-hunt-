@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Inputs at 16px stop iOS Safari zooming on focus. */
+input,
+textarea,
+select,
+button {
+  font: inherit;
+  font-size: max(16px, 1em);
+}
+
+.player {
+  background: #0b0d10;
+  color: #e8ecf1;
+  min-height: 100dvh;
+}
+
+.admin {
+  background: #ffffff;
+  color: #111827;
+  min-height: 100dvh;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.pulse-slow { animation: pulse-slow 2.4s ease-in-out infinite; }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(5px); }
+}
+.shake { animation: shake 0.4s ease-in-out; }
+
+@keyframes glitch {
+  0% { clip-path: inset(0 0 0 0); transform: translate(0); }
+  20% { clip-path: inset(20% 0 60% 0); transform: translate(-3px, 1px); }
+  40% { clip-path: inset(60% 0 10% 0); transform: translate(3px, -1px); }
+  60% { clip-path: inset(40% 0 40% 0); transform: translate(-2px, 0); }
+  80% { clip-path: inset(10% 0 80% 0); transform: translate(2px, 1px); }
+  100% { clip-path: inset(0 0 0 0); transform: translate(0); }
+}
+.glitch { animation: glitch 0.5s steps(2, end) 1; }
+
+@keyframes caret {
+  50% { opacity: 0; }
+}
+.caret::after {
+  content: '▌';
+  margin-left: 2px;
+  animation: caret 1s steps(1) infinite;
+}
+
+.redacted {
+  background: repeating-linear-gradient(90deg, #232830 0 10px, #1b1f25 10px 14px);
+  color: transparent;
+  user-select: none;
+}
+
+/* Decorative motion drops out cleanly. */
+@media (prefers-reduced-motion: reduce) {
+  .pulse-slow, .shake, .glitch, .caret::after { animation: none !important; }
+}

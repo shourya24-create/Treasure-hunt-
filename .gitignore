@@ -1,0 +1,8 @@
+node_modules/
+.next/
+.env*.local
+.localdb/
+qr-codes/*
+!qr-codes/.gitkeep
+*.tsbuildinfo
+next-env.d.ts
