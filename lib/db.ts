@@ -17,7 +17,15 @@ export async function connectDB(): Promise<typeof mongoose> {
     dns.setServers(process.env.MONGODB_DNS_SERVERS.split(',').map((s) => s.trim()));
   }
   if (!cache.promise) {
-    cache.promise = mongoose.connect(uri, { maxPoolSize: 5, bufferCommands: false });
+    // Small pools per instance: under a spike Vercel runs many instances, and
+    // Atlas M0 starts refusing TLS handshakes once connections pile up.
+    cache.promise = mongoose.connect(uri, {
+      maxPoolSize: 2,
+      minPoolSize: 0,
+      maxIdleTimeMS: 10_000,
+      serverSelectionTimeoutMS: 8_000,
+      bufferCommands: false,
+    });
   }
   try {
     cache.conn = await cache.promise;
