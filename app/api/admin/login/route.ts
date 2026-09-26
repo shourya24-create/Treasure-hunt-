@@ -18,12 +18,14 @@ export async function POST(req: Request) {
   await connectDB();
   const ip = `admin:${clientIp(req)}`;
   const recent = await LoginAttempt.countDocuments({ ip, at: { $gt: new Date(Date.now() - 60_000) } });
-  if (recent >= 10) return fail(429, 'Too many attempts. Wait a minute.');
-  await LoginAttempt.create({ ip });
+  if (recent >= 10) return fail(429, 'Too many wrong attempts. Wait a minute.');
 
   const a = Buffer.from(password);
   const b = Buffer.from(expected);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return fail(401, 'Wrong password');
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    await LoginAttempt.create({ ip }); // only failures count
+    return fail(401, 'Wrong password');
+  }
   await signAdmin(name);
   return ok({ ok: true });
 }
