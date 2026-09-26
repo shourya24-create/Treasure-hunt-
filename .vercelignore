@@ -1,0 +1,6 @@
+.localdb
+node_modules
+.next
+qr-codes
+.env*.local
+*.tsbuildinfo
