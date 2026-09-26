@@ -10,6 +10,12 @@ export async function connectDB(): Promise<typeof mongoose> {
   if (cache.conn) return cache.conn;
   const uri = process.env.MONGODB_URI;
   if (!uri) throw new Error('MONGODB_URI is not set');
+  // Some Windows/router setups refuse Node's SRV lookups for mongodb+srv URIs.
+  // Opt-in workaround for local runs: MONGODB_DNS_SERVERS=8.8.8.8,1.1.1.1
+  if (process.env.MONGODB_DNS_SERVERS) {
+    const dns = await import('dns');
+    dns.setServers(process.env.MONGODB_DNS_SERVERS.split(',').map((s) => s.trim()));
+  }
   if (!cache.promise) {
     cache.promise = mongoose.connect(uri, { maxPoolSize: 5, bufferCommands: false });
   }
