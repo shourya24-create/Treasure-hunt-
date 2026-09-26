@@ -5,6 +5,8 @@
  * ceiling while it's still fixable. Doesn't release teams or change progress.
  *
  *   LOADTEST_URL=https://your-app.vercel.app LOADTEST_CLIENTS=20 LOADTEST_ROUNDS=10 npm run loadtest
+ *   Realistic batch (48 phones, 8s polling, ~1 min):
+ *   LOADTEST_URL=... LOADTEST_CLIENTS=48 LOADTEST_ROUNDS=8 LOADTEST_PACE_MS=8000 npm run loadtest
  */
 import { readFileSync } from 'fs';
 import path from 'path';
@@ -12,6 +14,10 @@ import path from 'path';
 const BASE = (process.env.LOADTEST_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 const CLIENTS = Number(process.env.LOADTEST_CLIENTS ?? 20);
 const ROUNDS = Number(process.env.LOADTEST_ROUNDS ?? 10);
+// Real phones poll every ~8s. PACE_MS > 0 simulates that (with jitter);
+// 0 fires back-to-back, which exceeds Atlas M0's ~100 ops/s throughput cap.
+const PACE_MS = Number(process.env.LOADTEST_PACE_MS ?? 0);
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const { teams } = JSON.parse(readFileSync(path.join(process.cwd(), 'data/teams.json'), 'utf8')) as { teams: { teamId: string; passcode: string }[] };
 
 const timings: number[] = [];
@@ -41,13 +47,16 @@ async function client(i: number) {
   const cookie = login?.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ') ?? '';
   const headers = { 'Content-Type': 'application/json', Cookie: cookie, 'X-Forwarded-For': ip };
   for (let r = 0; r < ROUNDS; r++) {
+    if (PACE_MS) await sleep(PACE_MS * (0.5 + Math.random()));
     await timed('/api/state', { headers });
-    await timed('/api/answer', { method: 'POST', headers, body: JSON.stringify({ cpId: 1, answer: `load-${r}` }) });
+    if (!PACE_MS || r % 4 === 0) {
+      await timed('/api/answer', { method: 'POST', headers, body: JSON.stringify({ cpId: 1, answer: `load-${r}` }) });
+    }
   }
 }
 
 async function main() {
-  console.log(`Load test: ${CLIENTS} clients × ${ROUNDS} rounds against ${BASE}`);
+  console.log(`Load test: ${CLIENTS} clients × ${ROUNDS} rounds${PACE_MS ? ` paced ~${PACE_MS}ms` : ''} against ${BASE}`);
   const t0 = performance.now();
   await Promise.all(Array.from({ length: CLIENTS }, (_, i) => client(i)));
   const secs = (performance.now() - t0) / 1000;
