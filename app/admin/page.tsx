@@ -319,7 +319,7 @@ function OverrideDialog({ pending, onClose, onDone }: { pending: Pending; onClos
   }
 
   return (
-    <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
       <form onClick={(e) => e.stopPropagation()} onSubmit={submit} className="flex w-full max-w-md flex-col gap-3 rounded bg-white p-5 shadow-xl">
         <h2 className="text-lg font-bold">{pending.label}</h2>
         {danger && <p className="font-semibold text-red-700">This clears all progress and the clock for this team. The event log keeps the history.</p>}

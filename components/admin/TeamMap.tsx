@@ -72,5 +72,6 @@ export function TeamMap({ rows, center, now, onSelect }: { rows: LiveRow[]; cent
     }
   }, [rows, now, onSelect]);
 
-  return <div ref={el} className="h-[420px] w-full rounded border border-gray-300" />;
+  // isolate: Leaflet panes use z-index 400-1000; keep them from covering dialogs.
+  return <div ref={el} className="relative isolate z-0 h-[420px] w-full rounded border border-gray-300" />;
 }

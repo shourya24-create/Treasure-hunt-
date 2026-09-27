@@ -6,16 +6,17 @@ import type { GameState, Phase } from '@/lib/types';
 // Anti-cheat and tracking for the one team phone:
 //  - GPS: watchPosition with high accuracy, reported every few seconds.
 //  - Wake lock: keeps the screen on so tracking doesn't stop.
-//  - Leaving the page (tab switch, app switch, screen lock) is reported to the
-//    organisers and sets off a siren. Browsers pause hidden pages, so on
-//    iPhone the siren usually starts the moment the player comes back.
+//  - Leaving the page (tab switch, app switch, screen off) is reported to the
+//    organisers and sets off a siren that keeps going until they come back.
+//
+// How the siren plays while the page is hidden: browsers refuse to *start*
+// sound in a background page, but keep sound that is already playing. So from
+// the first tap the siren loops inaudibly, and going hidden only turns it up.
+// Nothing a website does can stop the hardware volume buttons.
 
 // Armed from login until the final code: logged in means watched.
 const ARMED: Phase[] = ['waiting', 'locate', 'puzzle', 'final'];
 const SIREN_SRC = '/media/siren.wav';
-// 0.1s of silence. Playing it on the first tap unlocks this <audio> element,
-// so the siren can play later without a tap (needed on iPhone).
-const SILENT_SRC = 'data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';
 const HIDDEN_KEY = 'echo:hiddenAt';
 const RELOAD_GRACE_MS = 3000; // a page reload briefly hides the page too
 
@@ -51,6 +52,25 @@ function writeHiddenAt(v: number | null) {
   }
 }
 
+function isIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+/** Inaudible but still "playing". iOS ignores .volume, so it uses .muted there. */
+function quiet(a: HTMLAudioElement) {
+  if (isIOS()) a.muted = true;
+  else {
+    a.muted = false;
+    a.volume = 0.001;
+  }
+}
+
+function loud(a: HTMLAudioElement) {
+  a.muted = false;
+  a.volume = 1;
+  if (a.paused) a.play().catch(() => {});
+}
+
 export function Guardian({ phase, game }: { phase: Phase; game: GameState['game'] }) {
   const armed = ARMED.includes(phase);
   const tracking = phase !== 'finished';
@@ -61,8 +81,10 @@ export function Guardian({ phase, game }: { phase: Phase; game: GameState['game'
   const [geo, setGeo] = useState<GeoStatus>('starting');
   const [fix, setFix] = useState<Fix | null>(null);
   const [alarm, setAlarm] = useState<{ until: number; hiddenMs: number } | null>(null);
+  const [sirenReady, setSirenReady] = useState(false);
   const [now, setNow] = useState(Date.now());
   const audio = useRef<HTMLAudioElement | null>(null);
+  const alarmUntil = useRef(0);
   const lastSent = useRef(0);
   const latest = useRef<Fix | null>(null);
   const armedRef = useRef(armed);
@@ -72,44 +94,80 @@ export function Guardian({ phase, game }: { phase: Phase; game: GameState['game'
 
   // ---- Siren ---------------------------------------------------------------
   useEffect(() => {
-    const a = new Audio(SILENT_SRC);
+    const a = new Audio(SIREN_SRC);
     a.loop = true;
+    a.preload = 'auto';
+    quiet(a);
     audio.current = a;
-    // Browsers only allow sound after a tap. Play silence on the first taps so
-    // this element is unlocked; the siren later reuses the same element.
-    fetch(SIREN_SRC).catch(() => {}); // warm the cache
-    const unlock = () => {
-      if (a.src.startsWith('data:')) a.play().then(() => a.pause()).catch(() => {});
+
+    // Browsers only allow sound after a tap: every tap (re)starts the inaudible loop.
+    const arm = () => {
+      if (!armedRef.current || !a.paused) return;
+      if (Date.now() >= alarmUntil.current) quiet(a);
+      a.play().then(() => setSirenReady(true)).catch(() => {});
     };
-    window.addEventListener('pointerdown', unlock);
-    window.addEventListener('keydown', unlock);
+    // If the OS or the lock-screen media control pauses it, start it again.
+    const onPause = () => {
+      setSirenReady(false);
+      if (armedRef.current) a.play().then(() => setSirenReady(true)).catch(() => {});
+    };
+    a.addEventListener('pause', onPause);
+    window.addEventListener('pointerdown', arm);
+    window.addEventListener('keydown', arm);
+
+    const ms = navigator.mediaSession;
+    if (ms) {
+      try {
+        ms.metadata = new MediaMetadata({ title: 'ECHO is watching', artist: 'Keep the game open' });
+        const resume = () => {
+          a.play().catch(() => {});
+        };
+        ms.setActionHandler('pause', resume);
+        ms.setActionHandler('stop', resume);
+      } catch {
+        /* not supported */
+      }
+    }
     return () => {
-      window.removeEventListener('pointerdown', unlock);
-      window.removeEventListener('keydown', unlock);
+      a.removeEventListener('pause', onPause);
+      window.removeEventListener('pointerdown', arm);
+      window.removeEventListener('keydown', arm);
+      armedRef.current = false;
       a.pause();
     };
   }, []);
 
+  // Disarm when the hunt is over for this team.
+  useEffect(() => {
+    if (!armed && audio.current) {
+      armedRef.current = false;
+      audio.current.pause();
+      setSirenReady(false);
+    }
+  }, [armed]);
+
   const soundSiren = useCallback(
     (hiddenMs: number) => {
       const a = audio.current;
-      if (a) {
-        if (!a.src.endsWith(SIREN_SRC)) a.src = SIREN_SRC;
-        a.currentTime = 0;
-        a.volume = 1;
-        a.play().catch(() => {});
-      }
+      if (a) loud(a);
       navigator.vibrate?.([400, 150, 400, 150, 400, 150, 400]);
-      setAlarm({ until: Date.now() + sirenMs, hiddenMs });
+      alarmUntil.current = Date.now() + sirenMs;
+      setAlarm({ until: alarmUntil.current, hiddenMs });
     },
     [sirenMs],
   );
+
+  const endAlarm = useCallback(() => {
+    alarmUntil.current = 0;
+    if (audio.current) quiet(audio.current);
+    setAlarm(null);
+  }, []);
 
   useEffect(() => {
     if (!alarm) return;
     const id = setInterval(() => {
       setNow(Date.now());
-      if (Date.now() >= alarm.until) audio.current?.pause();
+      if (Date.now() >= alarm.until && audio.current && document.visibilityState === 'visible') quiet(audio.current);
     }, 250);
     return () => clearInterval(id);
   }, [alarm]);
@@ -126,29 +184,40 @@ export function Guardian({ phase, game }: { phase: Phase; game: GameState['game'
       if (siren) soundSiren(hiddenMs);
     }
 
+    let graceTimer: ReturnType<typeof setTimeout> | undefined;
     const onVisibility = () => {
+      const a = audio.current;
       if (document.visibilityState === 'hidden') {
         writeHiddenAt(Date.now());
         beacon({ event: 'hidden', phase: phaseRef.current });
-        // Android Chrome may let an unlocked element keep playing while hidden.
-        const a = audio.current;
-        if (armedRef.current && graceMs === 0 && a) {
-          a.src = SIREN_SRC;
-          a.play().catch(() => {});
+        if (armedRef.current && a) {
+          // Turn the already-playing loop up: this is what keeps sounding
+          // while the phone is in another app or the screen is off.
+          const goLoud = () => {
+            loud(a);
+            navigator.vibrate?.([600, 200, 600, 200, 600]);
+          };
+          if (graceMs === 0) goLoud();
+          else graceTimer = setTimeout(() => document.visibilityState === 'hidden' && goLoud(), graceMs);
         }
       } else {
+        clearTimeout(graceTimer);
         const at = readHiddenAt();
         writeHiddenAt(null);
         if (!at) return;
         const hiddenMs = Date.now() - at;
         const siren = armedRef.current && hiddenMs > graceMs;
         beacon({ event: 'visible', hiddenMs, siren });
+        // Back on the page: stay loud a few more seconds with the warning, then quiet.
         if (siren) soundSiren(hiddenMs);
-        else audio.current?.pause();
+        else if (a && Date.now() >= alarmUntil.current) quiet(a);
       }
     };
     document.addEventListener('visibilitychange', onVisibility);
-    return () => document.removeEventListener('visibilitychange', onVisibility);
+    return () => {
+      clearTimeout(graceTimer);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [graceMs, soundSiren]);
 
   // ---- Keep the screen on ----------------------------------------------------
@@ -243,10 +312,7 @@ export function Guardian({ phase, game }: { phase: Phase; game: GameState['game'
         </p>
         <button
           disabled={left > 0}
-          onClick={() => {
-            audio.current?.pause();
-            setAlarm(null);
-          }}
+          onClick={endAlarm}
           className="min-h-touch w-full max-w-xs rounded bg-bg px-4 font-bold text-danger disabled:opacity-60"
         >
           {left > 0 ? `Wait ${left}s` : 'Back to the hunt'}
@@ -293,7 +359,9 @@ export function Guardian({ phase, game }: { phase: Phase; game: GameState['game'
   if (!tracking) return null;
   return (
     <p className="fixed bottom-0 left-0 right-0 z-30 border-t border-line bg-bg/95 py-1 text-center text-xs text-muted" role="status">
-      {fix ? (
+      {armed && !sirenReady ? (
+        <span className="text-amber">Tap the screen once to arm ECHO</span>
+      ) : fix ? (
         <>
           <span aria-hidden>📍</span> Location on · ±{Math.round(fix.accuracy)} m · keep this page open
         </>
