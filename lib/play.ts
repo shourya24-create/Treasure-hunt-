@@ -2,7 +2,7 @@ import { connectDB } from './db';
 import { matches } from './norm';
 import { verifyCp } from './hmac';
 import { sealForAnswers } from './seal';
-import { CP_COUNT, nextCheckpoint } from './game';
+import { CP_COUNT, nextCheckpoint, type Route } from './game';
 import { Checkpoint, Progress, Settings, Team, logEvent, type CheckpointDoc, type SettingsDoc } from '@/models';
 import type { GameState, LocateInfo, Phase, PuzzleInfo } from './types';
 
@@ -58,7 +58,7 @@ export async function buildState(teamId: string): Promise<GameState | null> {
   const cpById = new Map(checkpoints.map((c) => [c.cpId, c]));
   const solved = progress.filter((p) => p.status === 'solved').sort((a, b) => +a.solvedAt! - +b.solvedAt!);
   const solvedSet = new Set(solved.map((p) => p.cpId));
-  const next = nextCheckpoint(team.routeOffset, solvedSet);
+  const next = nextCheckpoint(team, solvedSet);
 
   const fragments = solved.map((p, i) => {
     const cp = cpById.get(p.cpId);
@@ -109,7 +109,7 @@ export async function buildState(teamId: string): Promise<GameState | null> {
 
   // Puzzle open: include only what this checkpoint needs, plus sealed
   // offline data (hashes, never plaintext answers).
-  const after = nextCheckpoint(team.routeOffset, [...solvedSet, next]);
+  const after = nextCheckpoint(team, [...solvedSet, next]);
   const afterCp = after !== null ? cpById.get(after) : undefined;
   const reveal = {
     fragment: cp.fragment,
@@ -152,7 +152,7 @@ export async function scan(teamId: string, cpId: number, token: string | null): 
   if (!team.startedAt) return 'not-started';
   const solved = await solvedIds(teamId);
   if (solved.includes(cpId)) return 'already';
-  const next = nextCheckpoint(team.routeOffset, solved);
+  const next = nextCheckpoint(team, solved);
   if (next === null) return 'done';
   if (cpId !== next) {
     await logEvent(teamId, 'scan-rejected', cpId, { reason: 'out-of-sequence', expected: next });
@@ -219,7 +219,7 @@ export async function submitAnswer(teamId: string, input: AnswerInput): Promise<
     if (!existing) return { status: 409, error: 'Checkpoint not open', reason: 'not-open' };
     if (existing.status === 'solved') {
       // A teammate got there first — show the same success screen.
-      if (correct) return { status: 200, correct: true, ...(await revealAfter(team.routeOffset, teamId, cp)) };
+      if (correct) return { status: 200, correct: true, ...(await revealAfter(team, teamId, cp)) };
       return { status: 409, error: 'Already solved', reason: 'already-solved' };
     }
     const until = +(existing.lastAttemptAt ?? now) + cooldownMs;
@@ -239,12 +239,12 @@ export async function submitAnswer(teamId: string, input: AnswerInput): Promise<
   if (!correct) return { status: 200, correct: false, cooldownUntil: +now + cooldownMs, attempts: row.attempts };
 
   await logEvent(teamId, 'solve', input.cpId, { via: input.offline ? 'offline' : 'answer' });
-  return { status: 200, correct: true, ...(await revealAfter(team.routeOffset, teamId, cp)) };
+  return { status: 200, correct: true, ...(await revealAfter(team, teamId, cp)) };
 }
 
-async function revealAfter(routeOffset: number, teamId: string, cp: CheckpointDoc) {
+async function revealAfter(route: Route, teamId: string, cp: CheckpointDoc) {
   const solved = await solvedIds(teamId);
-  const after = nextCheckpoint(routeOffset, solved);
+  const after = nextCheckpoint(route, solved);
   const afterCp = after !== null ? await Checkpoint.findOne({ cpId: after }).lean() : null;
   return {
     fragment: cp.fragment,
@@ -298,7 +298,7 @@ export async function submitFinal(teamId: string, code: string): Promise<FinalRe
   if (!team?.startedAt) return { status: 409, error: 'Not released yet' };
   if (team.vrReadyAt) return { status: 200, correct: true };
   const solved = await solvedIds(teamId);
-  if (nextCheckpoint(team.routeOffset, solved) !== null) return { status: 409, error: 'Fragments missing' };
+  if (nextCheckpoint(team, solved) !== null) return { status: 409, error: 'Fragments missing' };
 
   const settings = await getSettings();
   const now = new Date();

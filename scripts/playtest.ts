@@ -17,7 +17,7 @@ const TEAM = process.env.PLAYTEST_TEAM ?? 'T12';
 
 type Cp = { cpId: number; answers: string[]; hints: string[] };
 const { checkpoints } = JSON.parse(readFileSync(path.join(process.cwd(), 'data/checkpoints.json'), 'utf8')) as { checkpoints: Cp[] };
-const { teams } = JSON.parse(readFileSync(path.join(process.cwd(), 'data/teams.json'), 'utf8')) as { teams: { teamId: string; passcode: string; routeOffset: number; batch: number }[] };
+const { teams } = JSON.parse(readFileSync(path.join(process.cwd(), 'data/teams.json'), 'utf8')) as { teams: { teamId: string; passcode: string; routeOffset: number; reverse?: boolean; batch: number }[] };
 const game = JSON.parse(readFileSync(path.join(process.cwd(), 'data/game.json'), 'utf8'));
 const team = teams.find((t) => t.teamId === TEAM)!;
 
@@ -91,7 +91,7 @@ async function main() {
   row = (await admin.req('GET', `/api/admin/live?batch=${team.batch}`)).json.teams.find((t: any) => t.teamId === TEAM);
   check('return logged with time away', row.awayNow === false && row.tabSwitches === 1 && row.awayMs === 12_000, row);
 
-  const order = orderFor(team.routeOffset);
+  const order = orderFor(team);
   const first = order[0];
   check('scan before release is refused', (await p.req('POST', '/api/scan', { cpId: first, t: signCp(first) })).json.result === 'not-started');
   check('release team', (await override('release')).status === 200);

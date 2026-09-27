@@ -28,7 +28,7 @@ export default async function TeamLog({ params }: { params: { teamId: string } }
         {team.teamId} · {team.name}
       </h1>
       <p className="mt-1 text-gray-700">
-        Batch {team.batch}, wave {team.wave}, route {orderFor(team.routeOffset).join(' → ')}. Started {t(team.startedAt)}, final code{' '}
+        Batch {team.batch}, route {orderFor(team).join(' → ')}. Started {t(team.startedAt)}, final code{' '}
         {t(team.vrReadyAt)}, finished {t(team.finishedAt)}.
       </p>
       <p className="mt-1 text-gray-700">

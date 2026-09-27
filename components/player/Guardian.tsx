@@ -10,7 +10,12 @@ import type { GameState, Phase } from '@/lib/types';
 //    organisers and sets off a siren. Browsers pause hidden pages, so on
 //    iPhone the siren usually starts the moment the player comes back.
 
-const ARMED: Phase[] = ['locate', 'puzzle', 'final'];
+// Armed from login until the final code: logged in means watched.
+const ARMED: Phase[] = ['waiting', 'locate', 'puzzle', 'final'];
+const SIREN_SRC = '/media/siren.wav';
+// 0.1s of silence. Playing it on the first tap unlocks this <audio> element,
+// so the siren can play later without a tap (needed on iPhone).
+const SILENT_SRC = 'data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';
 const HIDDEN_KEY = 'echo:hiddenAt';
 const RELOAD_GRACE_MS = 3000; // a page reload briefly hides the page too
 
@@ -19,6 +24,15 @@ type Fix = { lat: number; lng: number; accuracy: number };
 
 function post(url: string, body: unknown) {
   return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: true }).catch(() => null);
+}
+
+/**
+ * Presence reports go by sendBeacon: it survives the page being frozen or
+ * closed, and the browser retries it once the network wakes back up.
+ */
+function beacon(body: unknown) {
+  const json = JSON.stringify(body);
+  if (!navigator.sendBeacon?.('/api/presence', new Blob([json], { type: 'application/json' }))) post('/api/presence', body);
 }
 
 function readHiddenAt(): number {
@@ -58,28 +72,20 @@ export function Guardian({ phase, game }: { phase: Phase; game: GameState['game'
 
   // ---- Siren ---------------------------------------------------------------
   useEffect(() => {
-    const a = new Audio('/media/siren.wav');
+    const a = new Audio(SILENT_SRC);
     a.loop = true;
-    a.preload = 'auto';
     audio.current = a;
-    // Browsers only allow sound after a tap. Prime the element on the first
-    // tap anywhere so it can play later without one.
+    // Browsers only allow sound after a tap. Play silence on the first taps so
+    // this element is unlocked; the siren later reuses the same element.
+    fetch(SIREN_SRC).catch(() => {}); // warm the cache
     const unlock = () => {
-      a.muted = true;
-      a.play()
-        .then(() => {
-          a.pause();
-          a.currentTime = 0;
-          a.muted = false;
-        })
-        .catch(() => {
-          a.muted = false;
-        });
-      window.removeEventListener('pointerdown', unlock);
+      if (a.src.startsWith('data:')) a.play().then(() => a.pause()).catch(() => {});
     };
     window.addEventListener('pointerdown', unlock);
+    window.addEventListener('keydown', unlock);
     return () => {
       window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
       a.pause();
     };
   }, []);
@@ -88,6 +94,7 @@ export function Guardian({ phase, game }: { phase: Phase; game: GameState['game'
     (hiddenMs: number) => {
       const a = audio.current;
       if (a) {
+        if (!a.src.endsWith(SIREN_SRC)) a.src = SIREN_SRC;
         a.currentTime = 0;
         a.volume = 1;
         a.play().catch(() => {});
@@ -115,27 +122,27 @@ export function Guardian({ phase, game }: { phase: Phase; game: GameState['game'
       const hiddenMs = Date.now() - stale;
       writeHiddenAt(null);
       const siren = armedRef.current && hiddenMs > Math.max(graceMs, RELOAD_GRACE_MS);
-      post('/api/presence', { event: 'visible', hiddenMs, siren });
+      beacon({ event: 'visible', hiddenMs, siren });
       if (siren) soundSiren(hiddenMs);
     }
 
     const onVisibility = () => {
       if (document.visibilityState === 'hidden') {
         writeHiddenAt(Date.now());
-        const body = JSON.stringify({ event: 'hidden', phase: phaseRef.current });
-        // sendBeacon survives the page being frozen or closed.
-        if (!navigator.sendBeacon?.('/api/presence', new Blob([body], { type: 'application/json' }))) {
-          post('/api/presence', JSON.parse(body));
+        beacon({ event: 'hidden', phase: phaseRef.current });
+        // Android Chrome may let an unlocked element keep playing while hidden.
+        const a = audio.current;
+        if (armedRef.current && graceMs === 0 && a) {
+          a.src = SIREN_SRC;
+          a.play().catch(() => {});
         }
-        // Android Chrome may let an unlocked element play while hidden.
-        if (armedRef.current && graceMs === 0) audio.current?.play().catch(() => {});
       } else {
         const at = readHiddenAt();
         writeHiddenAt(null);
         if (!at) return;
         const hiddenMs = Date.now() - at;
         const siren = armedRef.current && hiddenMs > graceMs;
-        post('/api/presence', { event: 'visible', hiddenMs, siren });
+        beacon({ event: 'visible', hiddenMs, siren });
         if (siren) soundSiren(hiddenMs);
         else audio.current?.pause();
       }

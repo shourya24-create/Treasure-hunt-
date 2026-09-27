@@ -36,7 +36,7 @@ export async function liveData(batch: number | 'all') {
     const te = events.filter((e) => e.teamId === t.teamId) as unknown as (TimedEvent & { cpId: number | null })[];
     const run = currentRunEvents(te);
     const solved = tp.filter((p) => p.status === 'solved');
-    const next = nextCheckpoint(t.routeOffset, solved.map((p) => p.cpId));
+    const next = nextCheckpoint(t, solved.map((p) => p.cpId));
     const open = next !== null ? tp.find((p) => p.cpId === next && p.status === 'open') : undefined;
 
     let status: TeamStatus;
@@ -69,8 +69,8 @@ export async function liveData(batch: number | 'all') {
       teamId: t.teamId,
       name: t.name,
       batch: t.batch,
-      wave: t.wave,
       routeOffset: t.routeOffset,
+      reverse: !!t.reverse,
       status,
       solvedCount: solved.length,
       currentCp: next,
@@ -100,13 +100,12 @@ export async function liveData(batch: number | 'all') {
     };
   });
 
-  const waves = [...new Set(teams.map((t) => `${t.batch}:${t.wave}`))]
-    .map((k) => {
-      const [b, w] = k.split(':').map(Number);
-      const members = teams.filter((t) => t.batch === b && t.wave === w);
-      return { batch: b, wave: w, size: members.length, released: members.filter((t) => t.startedAt).length };
-    })
-    .sort((a, b) => a.batch - b.batch || a.wave - b.wave);
+  const batches = [...new Set(teams.map((t) => t.batch))]
+    .sort((a, b) => a - b)
+    .map((b) => {
+      const members = teams.filter((t) => t.batch === b);
+      return { batch: b, size: members.length, released: members.filter((t) => t.startedAt).length };
+    });
 
   return {
     serverNow: +now,
@@ -117,7 +116,7 @@ export async function liveData(batch: number | 'all') {
       redMinutes: settings.redMinutes,
       campusCenter: settings.campusCenter as [number, number] | undefined,
     },
-    waves,
+    batches,
     teams: rank(rows),
   };
 }
@@ -130,7 +129,7 @@ export type LiveRow = LiveData['teams'][number];
 // ---------------------------------------------------------------------------
 
 export const OVERRIDE_ACTIONS = [
-  'release', 'release-wave', 'unlock-next', 'mark-solved', 'adjust-time',
+  'release', 'release-batch', 'unlock-next', 'mark-solved', 'adjust-time',
   'vr-complete', 'unfinish', 'reset', 'resolve-flags', 'unlock-login',
 ] as const;
 export type OverrideAction = (typeof OVERRIDE_ACTIONS)[number];
@@ -140,7 +139,6 @@ export type OverrideInput = {
   reason: string;
   teamId?: string;
   batch?: number;
-  wave?: number;
   cpId?: number;
   minutes?: number;
 };
@@ -154,12 +152,13 @@ export async function applyOverride(admin: string, input: OverrideInput): Promis
   const log = (teamId: string, cpId: number | null = null, extra: Record<string, unknown> = {}) =>
     logEvent(teamId, 'override', cpId, { action: input.action, by: admin, reason, ...extra });
 
-  if (input.action === 'release-wave') {
-    if (!Number.isInteger(input.batch) || !Number.isInteger(input.wave)) return { ok: false, error: 'batch and wave required' };
-    const pending = await Team.find({ batch: input.batch, wave: input.wave, startedAt: null }, { teamId: 1 }).lean();
+  if (input.action === 'release-batch') {
+    // All teams in the batch start together; everyone gets the same start time.
+    if (!Number.isInteger(input.batch)) return { ok: false, error: 'batch required' };
+    const pending = await Team.find({ batch: input.batch, startedAt: null }, { teamId: 1 }).lean();
     const ids = pending.map((t) => t.teamId);
     await Team.updateMany({ teamId: { $in: ids }, startedAt: null }, { $set: { startedAt: now } });
-    await Promise.all(ids.map((id) => log(id, null, { batch: input.batch, wave: input.wave })));
+    await Promise.all(ids.map((id) => log(id, null, { batch: input.batch })));
     return { ok: true, affected: ids };
   }
 
@@ -177,7 +176,7 @@ export async function applyOverride(admin: string, input: OverrideInput): Promis
     case 'unlock-next': {
       if (!team.startedAt) return { ok: false, error: 'Release the team first' };
       const solved = (await Progress.find({ teamId, status: 'solved' }).lean()).map((p) => p.cpId);
-      const next = nextCheckpoint(team.routeOffset, solved);
+      const next = nextCheckpoint(team, solved);
       if (next === null) return { ok: false, error: 'All checkpoints solved' };
       await Progress.updateOne(
         { teamId, cpId: next },
@@ -190,7 +189,7 @@ export async function applyOverride(admin: string, input: OverrideInput): Promis
     case 'mark-solved': {
       if (!team.startedAt) return { ok: false, error: 'Release the team first' };
       const solved = (await Progress.find({ teamId, status: 'solved' }).lean()).map((p) => p.cpId);
-      const cpId = input.cpId ?? nextCheckpoint(team.routeOffset, solved);
+      const cpId = input.cpId ?? nextCheckpoint(team, solved);
       if (cpId === null || cpId === undefined) return { ok: false, error: 'Nothing to solve' };
       if (solved.includes(cpId)) return { ok: false, error: `Checkpoint ${cpId} already solved` };
       await Progress.updateOne(
@@ -259,7 +258,7 @@ export async function applyOverride(admin: string, input: OverrideInput): Promis
 export function toCsv(data: LiveData): string {
   const iso = (ms: number | null) => (ms ? new Date(ms).toISOString() : '');
   const header = [
-    'rank', 'teamId', 'name', 'batch', 'wave', 'status', 'solved', 'totalMinutes',
+    'rank', 'teamId', 'name', 'batch', 'status', 'solved', 'totalMinutes',
     'hints', 'wrongAttempts', 'startedAt', 'finishedAt',
   ];
   const esc = (v: unknown) => {
@@ -268,7 +267,7 @@ export function toCsv(data: LiveData): string {
   };
   const lines = data.teams.map((r) =>
     [
-      r.rank ?? 'DNF', r.teamId, r.name, r.batch, r.wave, r.status, r.solvedCount,
+      r.rank ?? 'DNF', r.teamId, r.name, r.batch, r.status, r.solvedCount,
       (r.totalMs / 60_000).toFixed(2), r.hints, r.wrongAttempts, iso(r.startedAt), iso(r.finishedAt),
     ].map(esc).join(','),
   );

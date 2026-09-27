@@ -33,7 +33,7 @@ function statusLabel(r: LiveRow): string {
   }
 }
 
-type Pending = { action: OverrideAction; teamId?: string; batch?: number; wave?: number; label: string };
+type Pending = { action: OverrideAction; teamId?: string; batch?: number; label: string };
 
 function Dashboard() {
   const router = useRouter();
@@ -87,16 +87,16 @@ function Dashboard() {
             <option value="all">All</option>
           </select>
         </label>
-        {data?.waves
-          .filter((w) => batch === 'all' || String(w.batch) === batch)
-          .map((w) => (
+        {data?.batches
+          .filter((b) => batch === 'all' || String(b.batch) === batch)
+          .map((b) => (
             <button
-              key={`${w.batch}-${w.wave}`}
-              disabled={w.released === w.size}
-              onClick={() => setPending({ action: 'release-wave', batch: w.batch, wave: w.wave, label: `Release batch ${w.batch} wave ${w.wave} (${w.size - w.released} teams)` })}
+              key={b.batch}
+              disabled={b.released === b.size}
+              onClick={() => setPending({ action: 'release-batch', batch: b.batch, label: `Release batch ${b.batch}: start the clock for ${b.size - b.released} teams` })}
               className="h-9 rounded bg-green-700 px-3 font-semibold text-white disabled:bg-gray-300 disabled:text-gray-600"
             >
-              {w.released === w.size ? `B${w.batch} wave ${w.wave} released` : `Release B${w.batch} wave ${w.wave}`}
+              {b.released === b.size ? `Batch ${b.batch} released` : `Release batch ${b.batch}`}
             </button>
           ))}
         <span className="ml-auto flex gap-3">
@@ -157,7 +157,7 @@ function Dashboard() {
               <thead className="border-b-2 border-gray-900">
                 <tr>
                   {th('teamId', 'Team')}
-                  <th className="px-2 text-left">B/W</th>
+                  <th className="px-2 text-left">Batch</th>
                   {th('status', 'Status')}
                   {th('solvedCount', 'Solved')}
                   {th('minutesOnCurrent', 'Min here')}
@@ -183,7 +183,7 @@ function Dashboard() {
                       <span className="font-normal text-gray-600">{r.name}</span>
                     </td>
                     <td className="px-2">
-                      {r.batch}/{r.wave}
+                      {r.batch}
                     </td>
                     <td className="px-2">{statusLabel(r)}</td>
                     <td className="px-2">
@@ -306,7 +306,6 @@ function OverrideDialog({ pending, onClose, onDone }: { pending: Pending; onClos
         action: pending.action,
         teamId: pending.teamId,
         batch: pending.batch,
-        wave: pending.wave,
         reason,
         minutes: needsMinutes ? Number(minutes) : undefined,
       }),

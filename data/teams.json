@@ -1,197 +1,197 @@
 {
-  "_note": "Placeholder teams. Offsets repeat only across waves, so duplicates never start together. Passcodes are printed on team cards; seed stores only their hash.",
+  "_note": "Placeholder teams. 12 per batch, all released together. T01-T08 (and T13-T20) start at checkpoints 1-8 going forwards; the other four share a start with one of them but walk the loop in reverse, so no two teams follow the same route. Passcodes are printed on team cards; seed stores only their hash.",
   "teams": [
     {
       "teamId": "T01",
       "name": "Team 01",
       "batch": 1,
-      "wave": 1,
       "routeOffset": 0,
-      "passcode": "2FU6Z9"
+      "passcode": "2FU6Z9",
+      "reverse": false
     },
     {
       "teamId": "T02",
       "name": "Team 02",
       "batch": 1,
-      "wave": 1,
       "routeOffset": 1,
-      "passcode": "7B3U68"
+      "passcode": "7B3U68",
+      "reverse": false
     },
     {
       "teamId": "T03",
       "name": "Team 03",
       "batch": 1,
-      "wave": 1,
       "routeOffset": 2,
-      "passcode": "F7KYA7"
+      "passcode": "F7KYA7",
+      "reverse": false
     },
     {
       "teamId": "T04",
       "name": "Team 04",
       "batch": 1,
-      "wave": 1,
       "routeOffset": 3,
-      "passcode": "F5ZCKH"
+      "passcode": "F5ZCKH",
+      "reverse": false
     },
     {
       "teamId": "T05",
       "name": "Team 05",
       "batch": 1,
-      "wave": 1,
       "routeOffset": 4,
-      "passcode": "WQGCFQ"
+      "passcode": "WQGCFQ",
+      "reverse": false
     },
     {
       "teamId": "T06",
       "name": "Team 06",
       "batch": 1,
-      "wave": 1,
       "routeOffset": 5,
-      "passcode": "SYMXEY"
+      "passcode": "SYMXEY",
+      "reverse": false
     },
     {
       "teamId": "T07",
       "name": "Team 07",
       "batch": 1,
-      "wave": 2,
       "routeOffset": 6,
-      "passcode": "CYSVTF"
+      "passcode": "CYSVTF",
+      "reverse": false
     },
     {
       "teamId": "T08",
       "name": "Team 08",
       "batch": 1,
-      "wave": 2,
       "routeOffset": 7,
-      "passcode": "AZK96M"
+      "passcode": "AZK96M",
+      "reverse": false
     },
     {
       "teamId": "T09",
       "name": "Team 09",
       "batch": 1,
-      "wave": 2,
       "routeOffset": 1,
-      "passcode": "RD59JU"
+      "passcode": "RD59JU",
+      "reverse": true
     },
     {
       "teamId": "T10",
       "name": "Team 10",
       "batch": 1,
-      "wave": 2,
       "routeOffset": 3,
-      "passcode": "KCRKYT"
+      "passcode": "KCRKYT",
+      "reverse": true
     },
     {
       "teamId": "T11",
       "name": "Team 11",
       "batch": 1,
-      "wave": 2,
       "routeOffset": 5,
-      "passcode": "VJAD9V"
+      "passcode": "VJAD9V",
+      "reverse": true
     },
     {
       "teamId": "T12",
       "name": "Team 12",
       "batch": 1,
-      "wave": 2,
-      "routeOffset": 0,
-      "passcode": "QH5M8N"
+      "routeOffset": 7,
+      "passcode": "QH5M8N",
+      "reverse": true
     },
     {
       "teamId": "T13",
       "name": "Team 13",
       "batch": 2,
-      "wave": 1,
       "routeOffset": 0,
-      "passcode": "JQUUHC"
+      "passcode": "JQUUHC",
+      "reverse": false
     },
     {
       "teamId": "T14",
       "name": "Team 14",
       "batch": 2,
-      "wave": 1,
       "routeOffset": 1,
-      "passcode": "EX6H42"
+      "passcode": "EX6H42",
+      "reverse": false
     },
     {
       "teamId": "T15",
       "name": "Team 15",
       "batch": 2,
-      "wave": 1,
       "routeOffset": 2,
-      "passcode": "5DH28D"
+      "passcode": "5DH28D",
+      "reverse": false
     },
     {
       "teamId": "T16",
       "name": "Team 16",
       "batch": 2,
-      "wave": 1,
       "routeOffset": 3,
-      "passcode": "YERZMX"
+      "passcode": "YERZMX",
+      "reverse": false
     },
     {
       "teamId": "T17",
       "name": "Team 17",
       "batch": 2,
-      "wave": 1,
       "routeOffset": 4,
-      "passcode": "DN6T93"
+      "passcode": "DN6T93",
+      "reverse": false
     },
     {
       "teamId": "T18",
       "name": "Team 18",
       "batch": 2,
-      "wave": 1,
       "routeOffset": 5,
-      "passcode": "GAT4WB"
+      "passcode": "GAT4WB",
+      "reverse": false
     },
     {
       "teamId": "T19",
       "name": "Team 19",
       "batch": 2,
-      "wave": 2,
       "routeOffset": 6,
-      "passcode": "N276MS"
+      "passcode": "N276MS",
+      "reverse": false
     },
     {
       "teamId": "T20",
       "name": "Team 20",
       "batch": 2,
-      "wave": 2,
       "routeOffset": 7,
-      "passcode": "A933P2"
+      "passcode": "A933P2",
+      "reverse": false
     },
     {
       "teamId": "T21",
       "name": "Team 21",
       "batch": 2,
-      "wave": 2,
       "routeOffset": 1,
-      "passcode": "X3FBPY"
+      "passcode": "X3FBPY",
+      "reverse": true
     },
     {
       "teamId": "T22",
       "name": "Team 22",
       "batch": 2,
-      "wave": 2,
       "routeOffset": 3,
-      "passcode": "U5YWTF"
+      "passcode": "U5YWTF",
+      "reverse": true
     },
     {
       "teamId": "T23",
       "name": "Team 23",
       "batch": 2,
-      "wave": 2,
       "routeOffset": 5,
-      "passcode": "QHSPJJ"
+      "passcode": "QHSPJJ",
+      "reverse": true
     },
     {
       "teamId": "T24",
       "name": "Team 24",
       "batch": 2,
-      "wave": 2,
-      "routeOffset": 0,
-      "passcode": "MUDXSB"
+      "routeOffset": 7,
+      "passcode": "MUDXSB",
+      "reverse": true
     }
   ]
 }

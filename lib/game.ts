@@ -3,15 +3,24 @@
 
 export const CP_COUNT = 8;
 
-/** Route order is derived, never stored: ((offset + i) % 8) + 1. */
-export function orderFor(routeOffset: number, count = CP_COUNT): number[] {
-  return Array.from({ length: count }, (_, i) => ((routeOffset + i) % count) + 1);
+/** A team's route: a start offset, walked forwards or (reverse) backwards round the loop. */
+export type Route = number | { routeOffset: number; reverse?: boolean | null };
+
+/**
+ * Route order is derived, never stored: start at checkpoint offset+1 and walk
+ * the loop. With 12 teams on 8 checkpoints, four pairs must share a start;
+ * the second of each pair walks in reverse so they split after one stop.
+ */
+export function orderFor(route: Route, count = CP_COUNT): number[] {
+  const offset = typeof route === 'number' ? route : route.routeOffset;
+  const step = typeof route === 'object' && route.reverse ? -1 : 1;
+  return Array.from({ length: count }, (_, i) => ((((offset + step * i) % count) + count) % count) + 1);
 }
 
 /** First checkpoint in the team's order not yet solved, or null when all are done. */
-export function nextCheckpoint(routeOffset: number, solved: Iterable<number>, count = CP_COUNT): number | null {
+export function nextCheckpoint(route: Route, solved: Iterable<number>, count = CP_COUNT): number | null {
   const done = new Set(solved);
-  return orderFor(routeOffset, count).find((cp) => !done.has(cp)) ?? null;
+  return orderFor(route, count).find((cp) => !done.has(cp)) ?? null;
 }
 
 export type TimedTeam = { startedAt?: Date | null; finishedAt?: Date | null };

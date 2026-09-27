@@ -13,6 +13,16 @@ test('orderFor rotates the 8 checkpoints by offset', () => {
   assert.deepEqual(orderFor(7), [8, 1, 2, 3, 4, 5, 6, 7]);
 });
 
+test('reverse routes walk the loop backwards from the same start', () => {
+  assert.deepEqual(orderFor({ routeOffset: 1, reverse: true }), [2, 1, 8, 7, 6, 5, 4, 3]);
+  assert.deepEqual(orderFor({ routeOffset: 1, reverse: false }), [2, 3, 4, 5, 6, 7, 8, 1]);
+  assert.equal(nextCheckpoint({ routeOffset: 1, reverse: true }, [2]), 1);
+  // 12 teams in a batch: no two share a whole route, and after the first stop no two stand at the same checkpoint.
+  const routes = [0, 1, 2, 3, 4, 5, 6, 7].map((o) => orderFor(o)).concat([1, 3, 5, 7].map((o) => orderFor({ routeOffset: o, reverse: true })));
+  assert.equal(new Set(routes.map((r) => r.join())).size, 12);
+  assert.equal(new Set(routes.map((r) => r[0])).size, 8);
+});
+
 test('nextCheckpoint skips solved ones, including out-of-order overrides', () => {
   assert.equal(nextCheckpoint(2, []), 3);
   assert.equal(nextCheckpoint(2, [3]), 4);

@@ -47,14 +47,14 @@ All game content is data. Edit, then `npm run seed`:
 
 - `data/checkpoints.json`: 8 checkpoints (location clue, puzzle, accepted answers, hints, story fragment). Optional `answersByBatch: { "2": [...] }` gives batch 2 different answers.
 - `data/game.json`: intro text, final meta-code answers, hint penalty, cooldown, amber/red thresholds.
-- `data/teams.json`: team IDs, names, batch, release wave, route offset, passcode (printed on cards; stored hashed).
+- `data/teams.json`: team IDs, names, batch, route offset and direction (`reverse`), passcode (printed on cards; stored hashed).
 - Media goes in `public/media/`. AR lenses are standalone pages in `public/ar/`.
 
 Everything in these files right now is **placeholder**.
 
 ## How it works (short version)
 
-- **Route**: order is `((offset + i) % 8) + 1`. Only the current location is ever sent to the phone.
+- **Route**: each team starts at checkpoint `offset + 1` and walks the loop forwards, or backwards if `reverse` is set. 12 teams on 8 checkpoints means four pairs share a start; one of each pair walks in reverse so they split after the first stop. Only the current location is ever sent to the phone.
 - **QR**: `/c/<id>?t=<hmac>`. The signature stops hand-typed URLs; the real lock is the sequence check. Scanning ahead does nothing.
 - **Answers**: checked server-side after normalising (case, spaces, punctuation). Atomic conditional updates mean four phones submitting at once record one result. There's a 30 s cooldown per team.
 - **Score**: computed from the event log on read: `finish − start + hints × penalty + adjustments`. Never stored as a running total.
@@ -72,7 +72,7 @@ Everything in these files right now is **placeholder**.
 
 1. Open `/admin` on the laptop and sign in with **your name** (every action is logged against it).
 2. Pick the batch in the top-left.
-3. At start time, press **Release B1 wave 1**. Wait about 5 minutes, then **Release B1 wave 2**.
+3. At start time, press **Release batch 1**. All 12 teams start together on the same clock.
 4. Watch the table. It refreshes every 5 seconds.
    - **Amber row** = 8+ minutes on one step. Keep an eye on it.
    - **Red row / STUCK** = 12+ minutes. Send a floater.

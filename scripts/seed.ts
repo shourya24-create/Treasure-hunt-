@@ -25,7 +25,7 @@ type CpIn = {
   media?: Record<string, string>; answers: string[]; answersByBatch?: Record<string, string[]>;
   hints?: string[]; fragment: string;
 };
-type TeamIn = { teamId: string; name: string; batch: number; wave: number; routeOffset: number; passcode: string };
+type TeamIn = { teamId: string; name: string; batch: number; routeOffset: number; reverse?: boolean; passcode: string };
 
 const read = <T>(file: string): T => JSON.parse(readFileSync(path.join(process.cwd(), 'data', file), 'utf8'));
 
@@ -51,7 +51,7 @@ function validate(cps: CpIn[], teams: TeamIn[], game: Record<string, unknown>): 
     if (!/^[A-Z0-9]+$/.test(t.teamId)) errs.push(`${t.teamId}: team IDs must be uppercase letters/digits`);
     if (!t.passcode?.trim()) errs.push(`${t.teamId}: missing passcode`);
     if (!Number.isInteger(t.routeOffset) || t.routeOffset < 0 || t.routeOffset >= CP_COUNT) errs.push(`${t.teamId}: routeOffset must be 0..${CP_COUNT - 1}`);
-    if (!Number.isInteger(t.batch) || !Number.isInteger(t.wave)) errs.push(`${t.teamId}: batch and wave must be integers`);
+    if (!Number.isInteger(t.batch)) errs.push(`${t.teamId}: batch must be an integer`);
   }
   const fa = game.finalAnswers as string[] | undefined;
   if (!fa?.length || !fa.some((a) => norm(a))) errs.push('game.json: finalAnswers is empty');
@@ -62,8 +62,8 @@ function warnings(teams: TeamIn[]): string[] {
   const out: string[] = [];
   const seen = new Map<string, string>();
   for (const t of teams) {
-    const k = `${t.batch}:${t.wave}:${t.routeOffset}`;
-    if (seen.has(k)) out.push(`${t.teamId} and ${seen.get(k)} share offset ${t.routeOffset} in batch ${t.batch} wave ${t.wave} — they'll walk together`);
+    const k = `${t.batch}:${t.routeOffset}:${t.reverse ? 'rev' : 'fwd'}`;
+    if (seen.has(k)) out.push(`${t.teamId} and ${seen.get(k)} have the same route in batch ${t.batch}: they'll walk together the whole hunt`);
     else seen.set(k, t.teamId);
   }
   return out;
@@ -116,7 +116,7 @@ async function main() {
   } else {
     await Team.deleteMany({});
     await Team.insertMany(
-      teams.map(({ passcode, ...t }) => ({ ...t, teamId: t.teamId.toUpperCase(), passcodeHash: hashPasscode(passcode) })),
+      teams.map(({ passcode, ...t }) => ({ ...t, reverse: !!t.reverse, teamId: t.teamId.toUpperCase(), passcodeHash: hashPasscode(passcode) })),
     );
     await Progress.deleteMany({});
     console.log(`Seeded ${teams.length} teams (progress cleared)`);
