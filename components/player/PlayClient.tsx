@@ -1,11 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { GameState, LocateInfo, PuzzleInfo } from '@/lib/types';
 import { checkLocal, load, queueSubmission, save, type Reveal } from '@/lib/offline-client';
 import { useGame } from './useGame';
+import { Guardian } from './Guardian';
+import { Scanner } from './Scanner';
 import { Button, ButtonLink, Chip, Panel, TypeOn, Wordmark, useNow } from './ui';
 
 const SCAN_MESSAGES: Record<string, string> = {
@@ -27,6 +29,31 @@ export function PlayClient() {
   const [notice, setNotice] = useState<string | null>(null);
   const [reveal, setReveal] = useState<{ data: Reveal; local: boolean } | null>(null);
   const [advance, setAdvance] = useState<Advance | null>(null);
+  const [scanning, setScanning] = useState(false);
+
+  const onScan = useCallback(
+    async (r: { cpId: number; t: string }) => {
+      setScanning(false);
+      try {
+        const res = await fetch('/api/scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(r),
+        });
+        if (res.status === 401) {
+          window.location.assign('/login?next=/play');
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
+        if (data.result !== 'ok') setNotice(SCAN_MESSAGES[data.result] ?? 'Scan not accepted.');
+        else setNotice(null);
+      } catch {
+        setNotice('No signal. Move somewhere with coverage and scan again.');
+      }
+      refresh();
+    },
+    [refresh],
+  );
 
   // Scan results arrive as ?scan=...; show once, then clean the URL.
   useEffect(() => {
@@ -80,7 +107,7 @@ export function PlayClient() {
     );
   } else if (advance && state.phase === 'puzzle' && state.puzzle?.cpId === advance.fromCp) {
     body = advance.reveal.next ? (
-      <LocateView current={advance.reveal.next} offline={offline} />
+      <LocateView current={advance.reveal.next} offline={offline} onScan={() => setScanning(true)} />
     ) : (
       <Panel>
         <p>All eight fragments recovered on this phone.</p>
@@ -97,12 +124,15 @@ export function PlayClient() {
         markOffline={() => setOffline(true)}
         bumpPending={bumpPending}
         refresh={refresh}
+        onScan={() => setScanning(true)}
       />
     );
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-4">
+    <div className="flex flex-1 flex-col gap-4 pb-8">
+      <Guardian phase={state.phase} game={state.game} />
+      {scanning && <Scanner onResult={onScan} onClose={() => setScanning(false)} />}
       <Header state={state} />
       {(offline || pending > 0) && (
         <div className="flex flex-wrap gap-2">
@@ -145,9 +175,10 @@ type PhaseProps = {
   markOffline: () => void;
   bumpPending: () => void;
   refresh: () => void;
+  onScan: () => void;
 };
 
-function PhaseView({ state, offline, skew, onSolved, markOffline, bumpPending, refresh }: PhaseProps) {
+function PhaseView({ state, offline, skew, onSolved, markOffline, bumpPending, refresh, onScan }: PhaseProps) {
   switch (state.phase) {
     case 'waiting':
       return (
@@ -158,7 +189,7 @@ function PhaseView({ state, offline, skew, onSolved, markOffline, bumpPending, r
         </div>
       );
     case 'locate':
-      return <LocateView current={state.current!} offline={offline} />;
+      return <LocateView current={state.current!} offline={offline} onScan={onScan} />;
     case 'puzzle':
       return (
         <PuzzleView
@@ -201,7 +232,7 @@ function PhaseView({ state, offline, skew, onSolved, markOffline, bumpPending, r
   }
 }
 
-function LocateView({ current, offline }: { current: LocateInfo; offline: boolean }) {
+function LocateView({ current, offline, onScan }: { current: LocateInfo; offline: boolean; onScan: () => void }) {
   return (
     <div className="flex flex-1 flex-col gap-4">
       <p className="text-sm text-muted">
@@ -211,11 +242,12 @@ function LocateView({ current, offline }: { current: LocateInfo; offline: boolea
         <p className="text-xl leading-relaxed">{current.locationHint}</p>
         {current.hook && <p className="mt-4 text-echo">&gt; {current.hook}</p>}
       </Panel>
-      <div className="mt-auto rounded border border-dashed border-line p-5 text-center">
-        <p className="text-lg">Scan the code when you&apos;re there.</p>
-        <p className="mt-2 text-sm text-muted">
-          Use your phone&apos;s normal camera app.{offline ? ' Scanning needs signal.' : ''}
-        </p>
+      <div className="mt-auto flex flex-col gap-3">
+        <p className="text-center text-muted">Scan the code when you&apos;re there.</p>
+        <Button onClick={onScan} disabled={offline}>
+          {offline ? 'Scanning needs signal' : 'Scan checkpoint code'}
+        </Button>
+        <p className="text-center text-xs text-muted">Scan here, not with the camera app. Leaving this page sets off the alarm.</p>
       </div>
     </div>
   );
@@ -379,6 +411,7 @@ function Media({ puzzle }: { puzzle: PuzzleInfo }) {
   const [showTranscript, setShowTranscript] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
   const [imgKey, setImgKey] = useState(0);
+  const [arOpen, setArOpen] = useState(false);
   const m = puzzle.media;
   return (
     <>
@@ -413,9 +446,18 @@ function Media({ puzzle }: { puzzle: PuzzleInfo }) {
           <img key={imgKey} src={m.image} alt="Puzzle image" onError={() => setImgFailed(true)} className="mt-4 w-full rounded border border-line" />
         ))}
       {m.arUrl && (
-        <a href={m.arUrl} target="_blank" rel="noopener" className="mt-4 flex min-h-touch items-center justify-center rounded border border-echo text-echo">
-          Open the AR lens ↗
-        </a>
+        <button onClick={() => setArOpen(true)} className="mt-4 flex min-h-touch w-full items-center justify-center rounded border border-echo text-echo">
+          Open the AR lens
+        </button>
+      )}
+      {/* In-page, not a new tab: leaving the page sets off the alarm. */}
+      {arOpen && m.arUrl && (
+        <div className="fixed inset-0 z-40 flex flex-col bg-black">
+          <iframe src={m.arUrl} title="AR lens" allow="camera; gyroscope; accelerometer; fullscreen" className="w-full flex-1 border-0" />
+          <button onClick={() => setArOpen(false)} className="min-h-touch bg-bg text-ink">
+            Close the lens
+          </button>
+        </div>
       )}
     </>
   );

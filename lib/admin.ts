@@ -57,6 +57,14 @@ export async function liveData(batch: number | 'all') {
     for (const e of run) if (e.type === 'override' && e.payload?.action === 'resolve-flags') lastResolve = Math.max(lastResolve, +e.at);
     const flags = run.filter((e) => e.type === 'offline-mismatch' && +e.at > lastResolve).length;
 
+    // Anti-cheat: times the phone left the game page, and whether it's away now.
+    const hides = run.filter((e) => e.type === 'tab-hidden');
+    const returns = run.filter((e) => e.type === 'tab-return');
+    const lastHide = hides.reduce((m, e) => Math.max(m, +e.at), 0);
+    const lastReturn = returns.reduce((m, e) => Math.max(m, +e.at), 0);
+    const awayMs = returns.reduce((sum, e) => sum + Number(e.payload?.hiddenMs ?? 0), 0);
+    const loc = t.location?.lat != null ? t.location : null;
+
     return {
       teamId: t.teamId,
       name: t.name,
@@ -79,6 +87,16 @@ export async function liveData(batch: number | 'all') {
       finishedAt: t.finishedAt ? +t.finishedAt : null,
       vrQueuePosition: vrQueue.includes(t.teamId) ? vrQueue.indexOf(t.teamId) + 1 : null,
       mismatches: flags,
+      loggedIn: !!t.activeSession,
+      device: t.device ?? null,
+      lastSeenAt: t.lastSeenAt ? +t.lastSeenAt : null,
+      location: loc ? { lat: loc.lat!, lng: loc.lng!, accuracy: loc.accuracy ?? 0, at: +(loc.at ?? 0) } : null,
+      tabSwitches: hides.length,
+      lastTabSwitchAt: lastHide || null,
+      awayNow: lastHide > lastReturn,
+      awayMs,
+      blockedLogins: run.filter((e) => e.type === 'login-blocked').length,
+      locationDenied: run.some((e) => e.type === 'location-denied'),
     };
   });
 
@@ -97,6 +115,7 @@ export async function liveData(batch: number | 'all') {
       hintPenaltyMinutes: settings.hintPenaltyMinutes,
       amberMinutes: settings.amberMinutes,
       redMinutes: settings.redMinutes,
+      campusCenter: settings.campusCenter as [number, number] | undefined,
     },
     waves,
     teams: rank(rows),
@@ -112,7 +131,7 @@ export type LiveRow = LiveData['teams'][number];
 
 export const OVERRIDE_ACTIONS = [
   'release', 'release-wave', 'unlock-next', 'mark-solved', 'adjust-time',
-  'vr-complete', 'unfinish', 'reset', 'resolve-flags',
+  'vr-complete', 'unfinish', 'reset', 'resolve-flags', 'unlock-login',
 ] as const;
 export type OverrideAction = (typeof OVERRIDE_ACTIONS)[number];
 
@@ -220,6 +239,13 @@ export async function applyOverride(admin: string, input: OverrideInput): Promis
     }
     case 'resolve-flags': {
       await log(teamId);
+      break;
+    }
+    case 'unlock-login': {
+      // Frees the team so a different phone can log in (dead battery, etc.).
+      // The old phone's session stops working immediately.
+      await Team.updateOne({ teamId }, { $set: { activeSession: null } });
+      await log(teamId, null, { previousDevice: team.device ?? null });
       break;
     }
   }

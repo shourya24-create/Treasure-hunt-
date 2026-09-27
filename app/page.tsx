@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { currentTeamId } from '@/lib/auth';
+import { currentTeamId } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 

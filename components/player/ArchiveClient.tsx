@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useGame } from './useGame';
+import { Guardian } from './Guardian';
 import { ButtonLink, Chip, Panel, Wordmark } from './ui';
 
 export function ArchiveClient() {
@@ -12,7 +13,8 @@ export function ArchiveClient() {
   const complete = locked === 0;
 
   return (
-    <div className="flex flex-1 flex-col gap-4">
+    <div className="flex flex-1 flex-col gap-4 pb-8">
+      <Guardian phase={state.phase} game={state.game} />
       <header className="flex items-center justify-between border-b border-line pb-3">
         <Wordmark small />
         <Link href="/play" className="flex min-h-touch items-center text-sm text-muted">

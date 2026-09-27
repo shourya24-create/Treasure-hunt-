@@ -21,8 +21,8 @@ const cookieOpts = (maxAge: number) => ({
   maxAge,
 });
 
-export async function signTeam(teamId: string): Promise<void> {
-  const token = await new SignJWT({ role: 'team' })
+export async function signTeam(teamId: string, sid: string): Promise<void> {
+  const token = await new SignJWT({ role: 'team', sid })
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(teamId)
     .setIssuedAt()
@@ -50,10 +50,10 @@ export async function verifyToken(token: string | undefined, role: 'team' | 'adm
   }
 }
 
-/** Team ID from the session cookie, or null. */
-export async function currentTeamId(): Promise<string | null> {
+/** Raw team session claims from the cookie (signature checked, device not). Use lib/session.ts. */
+export async function teamClaims(): Promise<{ teamId: string; sid: string } | null> {
   const p = await verifyToken(cookies().get(TEAM_COOKIE)?.value, 'team');
-  return typeof p?.sub === 'string' ? p.sub : null;
+  return typeof p?.sub === 'string' && typeof p.sid === 'string' ? { teamId: p.sub, sid: p.sid } : null;
 }
 
 /** Organiser name from the admin cookie, or null. */

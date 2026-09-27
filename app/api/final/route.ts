@@ -1,4 +1,4 @@
-import { currentTeamId } from '@/lib/auth';
+import { currentTeamId } from '@/lib/session';
 import { fail, ok } from '@/lib/http';
 import { submitFinal } from '@/lib/play';
 

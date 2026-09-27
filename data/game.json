@@ -3,10 +3,20 @@
   "title": "ECHO Protocol",
   "intro": "ECHO has been activated. Eight fragments of its memory are scattered across campus. Recover them all, assemble the sequence, and report to the Council Room before the signal fades.",
   "finalPrompt": "Eight fragments recovered. Assemble the sequence: take the key letter from each fragment, in fragment order I to VIII.",
-  "finalAnswers": ["ECHOLIVE", "echo live"],
+  "finalAnswers": [
+    "ECHOLIVE",
+    "echo live"
+  ],
   "councilRoom": "the AR/VR Council Room",
   "hintPenaltyMinutes": 3,
   "cooldownSeconds": 30,
   "amberMinutes": 8,
-  "redMinutes": 12
+  "redMinutes": 12,
+  "locationIntervalSeconds": 10,
+  "sirenGraceSeconds": 0,
+  "sirenSeconds": 5,
+  "campusCenter": [
+    19.0728,
+    72.8998
+  ]
 }

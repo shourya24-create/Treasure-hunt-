@@ -66,12 +66,30 @@ async function main() {
   check('admin API rejects anonymous callers', (await new Client().req('GET', '/api/admin/live')).status === 401);
   check('admin login', (await admin.req('POST', '/api/admin/login', { name: 'playtest', password: process.env.ADMIN_PASSWORD })).status === 200);
   await override('reset');
+  await override('unlock-login');
 
   const p = new Client();
   check('wrong passcode rejected', (await p.req('POST', '/api/login', { teamId: TEAM, passcode: 'NOPE' })).status === 401);
   check('team login', (await p.req('POST', '/api/login', { teamId: TEAM.toLowerCase(), passcode: team.passcode })).status === 200);
   let s = (await p.req('GET', '/api/state')).json;
   check('holding screen before release', s.phase === 'waiting', s.phase);
+
+  // One phone per team.
+  const phone2 = new Client();
+  const blocked = await phone2.req('POST', '/api/login', { teamId: TEAM, passcode: team.passcode });
+  check('second phone is refused (one phone per team)', blocked.status === 409, blocked.json);
+  check('second phone gets no access', (await phone2.req('GET', '/api/state')).status === 401);
+  check('same phone can log in again', (await p.req('POST', '/api/login', { teamId: TEAM, passcode: team.passcode })).status === 200);
+
+  // Location + presence.
+  check('location report accepted', (await p.req('POST', '/api/location', { lat: 19.07284, lng: 72.89983, accuracy: 7.4 })).status === 200);
+  check('bad location rejected', (await p.req('POST', '/api/location', { lat: 999, lng: 0, accuracy: 5 })).status === 400);
+  await p.req('POST', '/api/presence', { event: 'hidden', phase: 'waiting' });
+  let row = (await admin.req('GET', `/api/admin/live?batch=${team.batch}`)).json.teams.find((t: any) => t.teamId === TEAM);
+  check('dashboard shows phone, fix and AWAY NOW', row.loggedIn && row.location?.accuracy === 7 && row.awayNow === true && row.blockedLogins === 1, row);
+  await p.req('POST', '/api/presence', { event: 'visible', hiddenMs: 12_000, siren: true });
+  row = (await admin.req('GET', `/api/admin/live?batch=${team.batch}`)).json.teams.find((t: any) => t.teamId === TEAM);
+  check('return logged with time away', row.awayNow === false && row.tabSwitches === 1 && row.awayMs === 12_000, row);
 
   const order = orderFor(team.routeOffset);
   const first = order[0];
@@ -165,7 +183,7 @@ async function main() {
   check('player sees finished', s.phase === 'finished', s.phase);
 
   const live = (await admin.req('GET', `/api/admin/live?batch=${team.batch}`)).json;
-  const row = live.teams.find((t: any) => t.teamId === TEAM);
+  row = live.teams.find((t: any) => t.teamId === TEAM);
   const expectedMs = row.finishedAt - row.startedAt + expectedHints * game.hintPenaltyMinutes * 60_000 - 60_000;
   check(`hints counted once each (${expectedHints})`, row.hints === expectedHints, row.hints);
   check(`wrong attempts (${expectedWrong})`, row.wrongAttempts === expectedWrong, row.wrongAttempts);
@@ -178,6 +196,11 @@ async function main() {
   await override('reset');
   s = (await p.req('GET', '/api/state')).json;
   check('reset returns team to holding screen', s.phase === 'waiting' && s.solvedCount === 0, s.phase);
+
+  check('organiser unlocks login', (await override('unlock-login')).status === 200);
+  check('old phone is signed out after unlock', (await p.req('GET', '/api/state')).status === 401);
+  check('new phone can log in after unlock', (await phone2.req('POST', '/api/login', { teamId: TEAM, passcode: team.passcode })).status === 200);
+  await override('unlock-login');
 
   console.log(failures ? `\n${failures} check(s) FAILED` : '\nAll checks passed');
   process.exit(failures ? 1 : 0);

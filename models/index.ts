@@ -13,6 +13,18 @@ const TeamSchema = new Schema({
   finishedAt: { type: Date, default: null },
   vrCompleted: { type: Boolean, default: false },
   lastFinalAttemptAt: { type: Date, default: null },
+  // One phone per team: the session id of the only device allowed in.
+  activeSession: { type: String, default: null },
+  sessionAt: { type: Date, default: null },
+  device: { type: String, default: null },
+  // Latest GPS fix and heartbeat from that phone.
+  location: {
+    lat: Number,
+    lng: Number,
+    accuracy: Number,
+    at: Date,
+  },
+  lastSeenAt: { type: Date, default: null },
 });
 
 // ---- Checkpoint (all content comes from data/checkpoints.json) -------------
@@ -56,6 +68,7 @@ ProgressSchema.index({ teamId: 1, cpId: 1 }, { unique: true });
 export const EVENT_TYPES = [
   'login', 'scan', 'scan-rejected', 'attempt', 'solve', 'hint',
   'final-attempt', 'final', 'override', 'offline-mismatch', 'reset',
+  'tab-hidden', 'tab-return', 'login-blocked', 'location-denied',
 ] as const;
 const EventSchema = new Schema({
   teamId: { type: String, required: true },
@@ -78,7 +91,21 @@ const SettingsSchema = new Schema({
   cooldownSeconds: { type: Number, default: 30 },
   amberMinutes: { type: Number, default: 8 },
   redMinutes: { type: Number, default: 12 },
+  locationIntervalSeconds: { type: Number, default: 10 },
+  sirenGraceSeconds: { type: Number, default: 0 },
+  sirenSeconds: { type: Number, default: 5 },
+  campusCenter: { type: [Number], default: [19.0728, 72.8998] },
 });
+
+// ---- Location trail (one phone per team; auto-deletes after 7 days) --------
+const LocationSchema = new Schema({
+  teamId: { type: String, required: true },
+  lat: { type: Number, required: true },
+  lng: { type: Number, required: true },
+  accuracy: { type: Number, required: true },
+  at: { type: Date, required: true, default: () => new Date(), expires: 7 * 24 * 3600 },
+});
+LocationSchema.index({ teamId: 1, at: -1 });
 
 // ---- Login attempts (rate limiting, auto-expire after a minute) ------------
 const LoginAttemptSchema = new Schema({
@@ -96,6 +123,7 @@ export const Progress = model('Progress', ProgressSchema);
 export const GameEvent = model('Event', EventSchema);
 export const Settings = model('Settings', SettingsSchema);
 export const LoginAttempt = model('LoginAttempt', LoginAttemptSchema);
+export const Location = model('Location', LocationSchema);
 
 export type TeamDoc = InferSchemaType<typeof TeamSchema>;
 export type CheckpointDoc = InferSchemaType<typeof CheckpointSchema>;

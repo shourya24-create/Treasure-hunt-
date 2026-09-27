@@ -1,5 +1,6 @@
+import { randomBytes } from 'crypto';
 import { connectDB } from '@/lib/db';
-import { signTeam } from '@/lib/auth';
+import { signTeam, teamClaims } from '@/lib/auth';
 import { checkPasscode } from '@/lib/passcode';
 import { clientIp, fail, ok } from '@/lib/http';
 import { LoginAttempt, Team, logEvent } from '@/models';
@@ -35,7 +36,26 @@ export async function POST(req: Request) {
     return fail(401, 'Team ID or passcode is wrong');
   }
 
-  await signTeam(team.teamId);
-  await logEvent(team.teamId, 'login', null, { ip });
+  // One phone per team: the first login claims the team atomically. Any other
+  // phone is refused until an organiser uses "Unlock login".
+  const existing = await teamClaims();
+  if (existing && existing.teamId === team.teamId && existing.sid === team.activeSession) {
+    // The phone that already holds the team, logging in again.
+    await signTeam(team.teamId, existing.sid);
+    return ok({ ok: true, teamId: team.teamId });
+  }
+  const sid = randomBytes(16).toString('hex');
+  const device = (req.headers.get('user-agent') ?? 'unknown').slice(0, 160);
+  const claimed = await Team.updateOne(
+    { teamId: team.teamId, activeSession: null },
+    { $set: { activeSession: sid, sessionAt: new Date(), device, lastSeenAt: new Date() } },
+  );
+  if (!claimed.modifiedCount) {
+    await logEvent(team.teamId, 'login-blocked', null, { ip, device });
+    return fail(409, 'Your team is already logged in on another phone. Only one phone per team is allowed. Ask an organiser if you need to switch.');
+  }
+
+  await signTeam(team.teamId, sid);
+  await logEvent(team.teamId, 'login', null, { ip, device });
   return ok({ ok: true, teamId: team.teamId });
 }

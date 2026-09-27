@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { currentTeamId } from '@/lib/auth';
+import { currentTeamId } from '@/lib/session';
 import { ArchiveClient } from '@/components/player/ArchiveClient';
 
 export const dynamic = 'force-dynamic';

@@ -32,6 +32,9 @@ export type GameState = {
     cooldownSeconds: number;
     finalPrompt?: string | null;
     councilRoom?: string | null;
+    locationIntervalSeconds?: number;
+    sirenGraceSeconds?: number;
+    sirenSeconds?: number;
   };
   solvedCount: number;
   total: number;

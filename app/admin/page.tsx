@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import type { LiveRow, OverrideAction } from '@/lib/admin';
 import { formatMs } from '@/lib/game';
 import { useLive } from '@/components/admin/useLive';
+import { TeamMap, markerColor } from '@/components/admin/TeamMap';
 
 type SortKey = 'teamId' | 'status' | 'solvedCount' | 'minutesOnCurrent' | 'attemptsHere' | 'hints' | 'totalMs';
 
@@ -17,6 +18,7 @@ const ACTIONS: { action: OverrideAction; label: string; danger?: boolean }[] = [
   { action: 'vr-complete', label: 'Confirm VR complete (stops clock)' },
   { action: 'unfinish', label: 'Undo VR complete' },
   { action: 'resolve-flags', label: 'Resolve offline flags' },
+  { action: 'unlock-login', label: 'Unlock login (switch phone)' },
   { action: 'reset', label: 'Reset team (wipes progress)', danger: true },
 ];
 
@@ -41,6 +43,12 @@ function Dashboard() {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'teamId', dir: 1 });
   const [pending, setPending] = useState<Pending | null>(null);
   const [toast, setToast] = useState('');
+  const [showMap, setShowMap] = useState(true);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (!toast) return;
@@ -122,6 +130,28 @@ function Dashboard() {
       ) : (
         <>
           {!released && <p className="mb-3 text-gray-600">No team in this view has been released yet.</p>}
+          {data.teams.some((t) => t.awayNow && t.status !== 'waiting' && t.status !== 'finished') && (
+            <div role="alert" className="mb-3 rounded border border-red-700 bg-red-600 px-3 py-2 font-semibold text-white">
+              🚨 Off the game page right now:{' '}
+              {data.teams
+                .filter((t) => t.awayNow && t.status !== 'waiting' && t.status !== 'finished')
+                .map((t) => t.teamId)
+                .join(', ')}
+            </div>
+          )}
+          <section className="mb-4">
+            <button className="mb-2 font-semibold underline" onClick={() => setShowMap((v) => !v)}>
+              {showMap ? '▾' : '▸'} Live map ({data.teams.filter((t) => t.location).length}/{data.teams.length} located)
+            </button>
+            {showMap && (
+              <>
+                <TeamMap rows={data.teams} center={data.settings.campusCenter} now={now} />
+                <p className="mt-1 text-xs text-gray-600">
+                  Green = fix under 30s old · amber = 30s to 2 min · grey = older or none · red = phone off the game page. Circle = GPS accuracy.
+                </p>
+              </>
+            )}
+          </section>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead className="border-b-2 border-gray-900">
@@ -134,6 +164,8 @@ function Dashboard() {
                   {th('attemptsHere', 'Attempts')}
                   {th('hints', 'Hints')}
                   {th('totalMs', 'Elapsed')}
+                  <th className="px-2 text-left">Phone / GPS</th>
+                  <th className="px-2 text-left">Left page</th>
                   <th className="px-2 text-left">Flags</th>
                   <th className="px-2 text-left">Action</th>
                 </tr>
@@ -164,6 +196,27 @@ function Dashboard() {
                     <td className="px-2">{r.status === 'puzzle' ? r.attemptsHere : '–'}</td>
                     <td className="px-2">{r.hints}</td>
                     <td className="px-2 font-mono">{r.startedAt ? formatMs(r.totalMs) : '–'}</td>
+                    <td className="whitespace-nowrap px-2">
+                      {!r.loggedIn ? (
+                        <span className="text-gray-500">No phone</span>
+                      ) : r.location ? (
+                        <a
+                          href={`https://www.google.com/maps?q=${r.location.lat},${r.location.lng}`}
+                          target="_blank"
+                          rel="noopener"
+                          className="underline"
+                          title={r.device ?? ''}
+                        >
+                          <span style={{ color: markerColor(r, now) }}>●</span> ±{r.location.accuracy}m · {Math.round((now - r.location.at) / 1000)}s
+                        </a>
+                      ) : (
+                        <span className={r.locationDenied ? 'font-semibold text-red-700' : 'text-amber-700'}>{r.locationDenied ? 'GPS denied' : 'No fix yet'}</span>
+                      )}
+                      {r.blockedLogins > 0 && <span className="ml-1 text-red-700" title="Other phones tried to log in">+{r.blockedLogins} blocked</span>}
+                    </td>
+                    <td className={`whitespace-nowrap px-2 ${r.awayNow ? 'bg-red-600 font-bold text-white' : r.tabSwitches ? 'font-semibold text-red-700' : ''}`}>
+                      {r.awayNow ? 'AWAY NOW' : r.tabSwitches ? `${r.tabSwitches}× · ${Math.round(r.awayMs / 1000)}s` : '–'}
+                    </td>
                     <td className="px-2">{r.mismatches > 0 && <span className="font-semibold text-red-700">⚠ {r.mismatches} offline mismatch</span>}</td>
                     <td className="px-2">
                       <select

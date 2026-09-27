@@ -14,7 +14,7 @@ import { CP_COUNT } from '../lib/game';
 import { norm } from '../lib/norm';
 import { hashPasscode } from '../lib/passcode';
 import { answerHash } from '../lib/seal';
-import { Checkpoint, GameEvent, LoginAttempt, Progress, Settings, Team } from '../models';
+import { Checkpoint, GameEvent, Location, LoginAttempt, Progress, Settings, Team } from '../models';
 
 const args = new Set(process.argv.slice(2));
 const force = args.has('--force');
@@ -84,7 +84,7 @@ async function main() {
   await connectDB();
   const db = mongoose.connection.db!;
   console.log(`Connected to ${db.databaseName}`);
-  await Promise.all([Team, Checkpoint, Progress, GameEvent, Settings, LoginAttempt].map((m) => m.syncIndexes()));
+  await Promise.all([Team, Checkpoint, Progress, GameEvent, Settings, LoginAttempt, Location].map((m) => m.syncIndexes()));
 
   // Checkpoints: always safe to rebuild. Keep existing salts so offline
   // hashes already on players' phones stay valid mid-event.
@@ -123,8 +123,9 @@ async function main() {
   }
 
   if (wipePlay) {
-    await Promise.all([Progress.deleteMany({}), GameEvent.deleteMany({}), LoginAttempt.deleteMany({})]);
-    console.log('Wiped all progress and events');
+    await Promise.all([Progress.deleteMany({}), GameEvent.deleteMany({}), LoginAttempt.deleteMany({}), Location.deleteMany({})]);
+    await Team.updateMany({}, { $set: { activeSession: null, location: null, lastSeenAt: null } });
+    console.log('Wiped all progress, events, locations and phone sessions');
   }
 
   await mongoose.disconnect();

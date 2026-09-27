@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
-import { currentTeamId } from '@/lib/auth';
+import { currentTeamId } from '@/lib/session';
 import { PlayClient } from '@/components/player/PlayClient';
 
 export const dynamic = 'force-dynamic';

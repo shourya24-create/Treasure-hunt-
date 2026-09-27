@@ -83,6 +83,9 @@ function LoginForm() {
             {error}
           </p>
         )}
+        <p className="text-sm leading-relaxed text-muted">
+          One phone per team. During the hunt this phone shares its location with the organisers, and leaving this page sets off an alarm.
+        </p>
         <button
           type="submit"
           disabled={!ready || busy}

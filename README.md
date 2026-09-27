@@ -60,6 +60,14 @@ Everything in these files right now is **placeholder**.
 - **Score**: computed from the event log on read: `finish − start + hints × penalty + adjustments`. Never stored as a running total.
 - **Offline**: when a puzzle opens, the phone gets salted hashes of the accepted answers, plus the fragment and next location encrypted with a key derived from the answer. With no signal it checks answers locally, reveals the next location, and queues the answer in IndexedDB. The server re-validates on reconnect and flags disagreements on the dashboard. A service worker (`public/sw.js`, production builds only) keeps the app shell and media available.
 
+## Tracking and anti-cheat
+
+- **One phone per team.** The first phone to log in holds the team; any other phone is refused (and the attempt is logged). If the phone dies, use **Unlock login** on the dashboard, then log in on the new phone.
+- **Live location.** The team phone reports its GPS position every `locationIntervalSeconds` (default 10). The dashboard map shows every team with an accuracy circle. Expect about ±5–15 m outdoors, worse indoors. The screen is kept awake while the game is open; browsers can't track a page that's closed or in the background.
+- **Leaving the page sets off a siren.** Switching tab or app, or locking the screen, is logged and shown on the dashboard (`AWAY NOW`, count, total time away). A siren and full-screen warning play on the phone; on iPhones the siren usually starts the moment they return, because hidden pages are paused. Tune with `sirenGraceSeconds` and `sirenSeconds` in `data/game.json`.
+- **Scan inside the page.** The in-page scanner replaces the camera app, since leaving the page would trigger the siren. The AR lens also opens inside the page.
+- Players see a notice about location and the alarm on the login screen. Location history deletes itself after 7 days.
+
 ## Organiser run sheet
 
 1. Open `/admin` on the laptop and sign in with **your name** (every action is logged against it).
@@ -74,6 +82,9 @@ Everything in these files right now is **placeholder**.
    - Bad answer key, or the team clearly solved it → *Mark current checkpoint solved*.
    - Time dispute → *Adjust time* (minutes, negative subtracts).
    - Released by mistake → *Reset team*.
+   - Team's phone died or they need to switch phone → *Unlock login (switch phone)*.
+   - Red **🚨 Off the game page** banner or **AWAY NOW** → the phone left the game. The row shows how often and for how long. Check the team's log for times.
+   - Use the **Live map** above the table to see where every team is.
 6. When a team finishes the VR finale, press **VR complete, stop clock** in the VR queue (under the table).
 7. Click a team ID to see its full event log. Use this to settle any dispute.
 8. At the end: open **Leaderboard ↗** on the projector and press **Export CSV**.
