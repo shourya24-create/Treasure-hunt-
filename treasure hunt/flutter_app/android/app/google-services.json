@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "512607074756",
+    "project_id": "treasure-hunt-38935",
+    "storage_bucket": "treasure-hunt-38935.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:512607074756:android:bd937ceefd1009fcd94c91",
+        "android_client_info": {
+          "package_name": "com.example.flutter_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBXrrtFF0lujaXRWblbSrBfgy4C9N22oHo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
