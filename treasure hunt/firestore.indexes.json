@@ -1,0 +1,21 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "facilitatorCommands",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "teamId",   "order": "ASCENDING"  },
+        { "fieldPath": "issuedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "fragments",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "status",      "order": "ASCENDING"  },
+        { "fieldPath": "unlockedAt",  "order": "ASCENDING"  }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
