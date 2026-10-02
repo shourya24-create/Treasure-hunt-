@@ -1,93 +1,221 @@
 /**
  * schema.ts — Firestore document type contracts for The Echo Protocol.
  *
- * These types mirror the exact shape stored in Firestore. All fields
- * are required unless marked optional.  No puzzle content lives here.
+ * These types mirror the exact shape stored in Firestore and follow
+ * GAMEPLAY.md §9. No puzzle content lives here.
+ *
+ * Three collections:
+ *   /teams/{teamId}      server truth. Facilitators read; nobody writes directly.
+ *   /teamViews/{teamId}  player-safe projection of a team. Only that team's phone reads it.
+ *   /game/state          event-wide switches (paused, ended).
  */
 
 import type { Timestamp } from "firebase-admin/firestore";
 
-// ── Status enumerations ───────────────────────────────────────────────────────
+// ── Identifiers ───────────────────────────────────────────────────────────────
 
-export type TeamStatus = "waiting" | "playing" | "paused" | "finished";
-export type FragmentStatus = "locked" | "active" | "completed";
-export type EndingChoice = "ISOLATE" | "RELEASE";
+/** The 7 campus checkpoints, in walking order around the loop (GAMEPLAY.md §5.1). */
+export const CAMPUS_CHECKPOINTS = [
+  "CP2", "CP3", "CP4", "CP5", "CP6", "CP7", "CP8",
+] as const;
+export type CampusCheckpointId = (typeof CAMPUS_CHECKPOINTS)[number];
+
+/** CP1 is the starting-room paper puzzle; it is never part of a route. */
+export type CheckpointId = "CP1" | CampusCheckpointId;
+export const ALL_CHECKPOINTS: readonly CheckpointId[] = ["CP1", ...CAMPUS_CHECKPOINTS];
+
+export const TEAM_IDS = [
+  "T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12",
+] as const;
+export type TeamId = (typeof TEAM_IDS)[number];
+
+// ── Enumerations ──────────────────────────────────────────────────────────────
+
+/** waiting → playing → atFinal → finished. Pausing is a separate flag. */
+export type TeamStatus = "waiting" | "playing" | "atFinal" | "finished";
+export type Direction = "forward" | "reverse";
+export type FinalDecision = "DESTROY" | "KEEP";
+export const FINAL_DECISIONS: readonly FinalDecision[] = ["DESTROY", "KEEP"];
 
 /** Answer grading modes supported by validate.ts. */
 export type AnswerMode = "exact" | "sequence" | "set" | "numeric";
 
-/** Facilitator action verbs. */
+/** Facilitator action verbs (GAMEPLAY.md §10). */
 export type FacilitatorActionType =
-  | "hint"
+  | "startGame"
+  | "recordHint"
+  | "undoHint"
   | "forceComplete"
-  | "pause"
-  | "resume"
-  | "reset";
+  | "swapNext"
+  | "moveToEnd"
+  | "arrivedFinal"
+  | "startViewing"
+  | "recordDecision"
+  | "resolveHelp"
+  | "pauseTeam"
+  | "resumeTeam"
+  | "pauseAll"
+  | "resumeAll"
+  | "endGame"
+  | "reopenGame"
+  | "releaseDevice"
+  | "resetTeam"
+  | "seedTeams"
+  | "listGateCodes"
+  | "contentStatus";
 
-// ── Evidence ──────────────────────────────────────────────────────────────────
-
-/**
- * A single piece of evidence unlocked during a fragment.
- * Stored as an array field inside QuestRecord.
- */
-export interface EvidenceCard {
-  id: string;
-  label: string;
-  unlockedAt: Timestamp;
-  /** Display value shown in the Journal (text, code, image URL, etc.). */
-  data: string;
-}
+/** A desk volunteer runs the CP1 gate desk and the headset desk only (UI.md §1). */
+export type FacilitatorRole = "admin" | "desk";
 
 // ── Team document  (/teams/{teamId}) ─────────────────────────────────────────
 
+/** Stored as start + direction; the full order is always derived (GAMEPLAY.md §5.2). */
+export interface RouteSpec {
+  start: CampusCheckpointId;
+  direction: Direction;
+}
+
+export interface CheckpointDone {
+  cp: CampusCheckpointId;
+  /** Null when an admin force-completed a checkpoint the team never scanned. */
+  arrivedAt: Timestamp | null;
+  solvedAt: Timestamp;
+  via: "solve" | "force";
+}
+
+export interface Arrival {
+  cp: CampusCheckpointId;
+  at: Timestamp;
+  /** The phone that scanned the object. */
+  deviceUid: string;
+}
+
+export interface HintTaken {
+  cp: CheckpointId;
+  at: Timestamp;
+  /** Facilitator UID who recorded it. */
+  by: string;
+}
+
+export interface TeamLocation {
+  lat: number;
+  lng: number;
+  accuracy: number;
+  at: Timestamp;
+}
+
 export interface TeamDoc {
-  /** Firestore document ID — duplicated here for convenience. */
-  id: string;
+  id: TeamId;
   name: string;
-  /** Short alphanumeric code used by joinTeam. */
-  joinCode: string;
+  route: RouteSpec;
+  /** Set only when an admin swaps or reorders; replaces the derived order. */
+  routeOverride: CampusCheckpointId[] | null;
   status: TeamStatus;
-  createdAt: Timestamp;
-  /** Set when the facilitator starts the run (status transitions to "playing"). */
-  startedAt?: Timestamp;
-  /** Allowed run duration in seconds (e.g. 3600 = 1 hour). */
-  timeLimit: number;
-  /**
-   * Total seconds the team has spent in "paused" state.
-   * Subtracted from elapsed time so pauses don't count against the clock.
-   */
-  pausedDuration: number;
-  /** UIDs of all team members, including the creator. */
-  members: string[];
-  /** Index into the canonical fragment sequence (0-based). */
-  currentFragmentIndex: number;
-  /** Set when the team completes Fragment 08 and picks an ending. */
-  endingChoice?: EndingChoice;
+  paused: boolean;
+  /** Firebase Auth UID of the one phone allowed to play this team. */
+  deviceUid: string | null;
+  deviceClaimedAt: Timestamp | null;
+  /** Gate code accepted; the campus run has started. */
+  cp1DoneAt: Timestamp | null;
+  cp1Via: "code" | "force" | null;
+  /** Ordered. `step = checkpointsDone.length`. */
+  checkpointsDone: CheckpointDone[];
+  /** Scanned but not yet solved. At most one at a time. */
+  arrival: Arrival | null;
+  hintsTaken: HintTaken[];
+  finalArrivedAt: Timestamp | null;
+  /** The team's one member has put the headset on. */
+  viewingStartedAt: Timestamp | null;
+  decision: FinalDecision | null;
+  decidedAt: Timestamp | null;
+  /** Never copied to the team view. */
+  decisionCorrect: boolean | null;
+  /** How many completions (CP1 + campus) the phone has played the reward for. */
+  rewardAck: number;
+  /** Team pressed "I NEED HELP"; cleared when an admin resolves it. */
+  helpRequestedAt: Timestamp | null;
+  /** Derived by engine.pointsOf() on every write; stored so the board can sort. */
+  points: number;
+  lastProgressAt: Timestamp | null;
+  location: TeamLocation | null;
+  /** Last heartbeat from the team's phone. */
+  lastSeenAt: Timestamp | null;
+  updatedAt: Timestamp;
 }
 
-// ── Fragment / quest record  (/teams/{teamId}/fragments/{fragmentId}) ─────────
+// ── Team view  (/teamViews/{teamId}) ─────────────────────────────────────────
 
-export interface QuestRecord {
-  /** e.g. "F01" … "F08" */
-  fragmentId: string;
-  status: FragmentStatus;
-  unlockedAt?: Timestamp;
-  completedAt?: Timestamp;
-  /** Evidence cards accumulated during this fragment. */
-  evidence: EvidenceCard[];
-  hintsUsed: number;
+export interface ChapterView {
+  n: number;
+  title: string;
+  transcript: string;
+  audioUrl: string;
 }
 
-// ── Hint document  (/teams/{teamId}/fragments/{fId}/hints/{hintId}) ──────────
+export interface ObjectHintView {
+  text: string;
+  imageUrl: string;
+}
 
-export interface HintDoc {
-  fragmentId: string;
-  /** 1 = gentle nudge, 2 = stronger, 3 = near-reveal. */
-  level: 1 | 2 | 3;
-  /** Populated by the onHintRequested function after delivery. */
-  text?: string;
-  requestedAt: Timestamp;
-  deliveredAt?: Timestamp;
+export interface ReactionView {
+  text: string;
+  audioUrl: string;
+}
+
+/** The reward still to be played: station reaction (by checkpoint), then chapter (by step). */
+export interface PendingReward {
+  /** Null after CP1, which has no station. */
+  stationReaction: ReactionView | null;
+  chapter: ChapterView;
+}
+
+/**
+ * Everything the phone is allowed to know. Never holds an answer, the route,
+ * the next checkpoint's ID, the points or whether the final decision was
+ * correct (UI.md §3.2: points are never shown to players).
+ */
+export interface TeamView {
+  id: TeamId;
+  name: string;
+  deviceUid: string | null;
+  status: TeamStatus;
+  paused: boolean;
+  cp1Done: boolean;
+  /** Campus checkpoints solved so far (0–7). */
+  step: number;
+  /** Set after the gate code or a solve, until the phone has played it. */
+  pendingReward: PendingReward | null;
+  /** The checkpoint whose AR activity is open, once the scan object matched. */
+  activeCheckpoint: CampusCheckpointId | null;
+  /** What to look for next. Null before CP1 and after the 7th checkpoint. */
+  objectHint: ObjectHintView | null;
+  /** Riddle for the next checkpoint. Null straight after CP1: the paper named it. */
+  locationClue: string | null;
+  returnToBase: boolean;
+  /** Unlocked chapters, in chapter order. */
+  chapters: ChapterView[];
+  finalArrived: boolean;
+  decision: FinalDecision | null;
+  decidedAt: Timestamp | null;
+  helpRequestedAt: Timestamp | null;
+  updatedAt: Timestamp;
+}
+
+// ── Game state  (/game/state) ────────────────────────────────────────────────
+
+export interface GameState {
+  /** Admin pressed "Start game": the 2-hour clock runs from here. */
+  startedAt: Timestamp | null;
+  /** Admin pressed "End game": no more scans or solves for anyone. */
+  ended: boolean;
+  endedAt: Timestamp | null;
+  /** Everyone paused. */
+  paused: boolean;
+  /** Teams that have arrived at the final and not yet decided, in arrival order. */
+  finalQueue: TeamId[];
+  /** The one team whose member is in the headset right now. */
+  inHeadset: TeamId | null;
+  updatedAt: Timestamp;
 }
 
 // ── Facilitator document  (/facilitators/{uid}) ───────────────────────────────
@@ -95,16 +223,19 @@ export interface HintDoc {
 export interface FacilitatorDoc {
   uid: string;
   displayName: string;
+  /** Missing = "admin". */
+  role?: FacilitatorRole;
   createdAt: Timestamp;
 }
 
 // ── Facilitator command  (/facilitatorCommands/{commandId}) ──────────────────
 
+/** Audit trail. Written only by the facilitatorAction function. */
 export interface FacilitatorCommand {
   type: FacilitatorActionType;
-  teamId: string;
-  fragmentId?: string;
-  hintLevel?: 1 | 2 | 3;
+  teamId: string | null;
+  checkpointId: string | null;
+  decision: string | null;
   issuedAt: Timestamp;
   facilitatorUid: string;
   /** Set to true by the Cloud Function after the command is handled. */
@@ -145,7 +276,7 @@ export type AnswerDefinition =
   | SetMatchAnswer
   | NumericAnswer;
 
-export interface FragmentAnswerDef {
-  fragmentId: string;
+export interface CheckpointAnswerDef {
+  checkpointId: CampusCheckpointId;
   answer: AnswerDefinition;
 }

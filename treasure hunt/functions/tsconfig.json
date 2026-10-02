@@ -11,8 +11,23 @@
     "strict": true,
     "target": "es2017"
   },
+  "ts-node": {
+    "experimentalResolver": true
+  },
   "compileOnSave": true,
   "include": [
     "src"
+  ],
+  "exclude": [
+    "src/createTeam.ts",
+    "src/joinTeam.ts",
+    "src/onHintRequested.ts",
+    "src/checkExpiredTeams.ts",
+    "src/submitFinalDecision.ts",
+    "src/verifyStationCode.ts",
+    "src/lib/progress.ts",
+    "src/content/hints.ts",
+    "src/content/journal.ts",
+    "src/content/stations.ts"
   ]
 }

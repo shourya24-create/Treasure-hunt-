@@ -8,16 +8,14 @@
 import { initializeApp } from "firebase-admin/app";
 initializeApp();
 
-// ── Callable functions ─────────────────────────────────────────────────────────
-export { createTeam }          from "./createTeam.js";
-export { joinTeam }            from "./joinTeam.js";
-export { submitAnswer }        from "./submitAnswer.js";
-export { verifyStationCode }   from "./verifyStationCode.js";
-export { submitFinalDecision } from "./submitFinalDecision.js";
-export { facilitatorAction }   from "./facilitatorAction.js";
+// ── Player callables (the team's one phone) ───────────────────────────────────
+export { claimTeam }      from "./claimTeam.js";
+export { enterGateCode }  from "./enterGateCode.js";
+export { recordArrival }  from "./recordArrival.js";
+export { submitAnswer }   from "./submitAnswer.js";
+export { ackReward }      from "./ackReward.js";
+export { requestHelp }    from "./requestHelp.js";
+export { reportLocation } from "./reportLocation.js";
 
-// ── Firestore triggers ─────────────────────────────────────────────────────────
-export { onHintRequested } from "./onHintRequested.js";
-
-// ── Scheduled functions (Phase 3 — timer) ─────────────────────────────────────
-export { checkExpiredTeams } from "./checkExpiredTeams.js";
+// ── Admin callable (dashboard) ────────────────────────────────────────────────
+export { facilitatorAction } from "./facilitatorAction.js";

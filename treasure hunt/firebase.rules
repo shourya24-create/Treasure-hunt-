@@ -2,6 +2,10 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Every write in this game goes through a Cloud Function (Admin SDK),
+    // so no client is ever allowed to write anything. A phone can read only
+    // its own team's view; facilitators can read everything.
+
     // ── helpers ──────────────────────────────────────────────────────────────
     function isSignedIn() {
       return request.auth != null;
@@ -13,59 +17,40 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/facilitators/$(request.auth.uid));
     }
 
-    // Safe to call only inside teams/{teamId} rule blocks where the doc is known.
-    function isTeamMember(teamId) {
-      return isSignedIn()
-        && request.auth.uid in get(
-             /databases/$(database)/documents/teams/$(teamId)
-           ).data.members;
-    }
-
     // ── facilitators ──────────────────────────────────────────────────────────
     // Each facilitator may read their own doc (used by isFacilitator() internally).
-    // Writes come exclusively from the Admin SDK; clients may never write here.
     match /facilitators/{uid} {
       allow read:  if isSignedIn() && request.auth.uid == uid;
       allow write: if false;
     }
 
-    // ── teams ─────────────────────────────────────────────────────────────────
+    // ── teams (server truth: route, arrivals, hints, decision) ───────────────
+    // Holds the full route and whether the decision was correct, so players
+    // must never read it. Facilitators read every team for the dashboard.
     match /teams/{teamId} {
-      // Facilitators can read every team (required for watchAllTeams() dashboard).
-      // Members can only read their own team.
-      allow read: if isFacilitator()
-                  || (isSignedIn() && request.auth.uid in resource.data.members);
-
-      // Any authenticated user may create a team.
-      // The creator must include their own UID in the initial members array.
-      allow create: if isSignedIn()
-                    && request.auth.uid in request.resource.data.members;
-
-      // Members may update their own team (submit answers, update status, etc.).
-      // Facilitators may update any team (pause, resume, force-complete).
-      allow update: if isFacilitator()
-                    || (isSignedIn() && request.auth.uid in resource.data.members);
-
-      allow delete: if false;
-
-      // ── fragments sub-collection ─────────────────────────────────────────
-      match /fragments/{fragmentId} {
-        allow read, write: if isFacilitator() || isTeamMember(teamId);
-      }
-
-      // ── hints sub-collection ─────────────────────────────────────────────
-      match /fragments/{fragmentId}/hints/{hintId} {
-        allow read, write: if isFacilitator() || isTeamMember(teamId);
-      }
+      allow read:  if isFacilitator();
+      allow write: if false;
     }
 
-    // ── facilitator commands ──────────────────────────────────────────────────
-    // Facilitators create commands; Cloud Functions process them (Admin SDK).
-    // No client may update or delete a command once issued.
+    // ── team views (player-safe projection) ───────────────────────────────────
+    // Readable only by the one phone that claimed the team.
+    match /teamViews/{teamId} {
+      allow read:  if isFacilitator()
+                   || (isSignedIn() && resource.data.deviceUid == request.auth.uid);
+      allow write: if false;
+    }
+
+    // ── game state (paused / ended) ───────────────────────────────────────────
+    match /game/{docId} {
+      allow read:  if isSignedIn();
+      allow write: if false;
+    }
+
+    // ── facilitator commands (audit trail) ────────────────────────────────────
+    // Written only by the facilitatorAction function.
     match /facilitatorCommands/{commandId} {
-      allow read:           if isFacilitator();
-      allow create:         if isFacilitator();
-      allow update, delete: if false;
+      allow read:  if isFacilitator();
+      allow write: if false;
     }
 
     // ── deny everything else ──────────────────────────────────────────────────

@@ -108,25 +108,18 @@ class _IncompatibleScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, color: EchoColors.amber, size: 56),
+                // The browser cannot run the scanner: a failure, so red.
+                Icon(icon, color: EchoColors.dangerRedBright, size: 56),
                 const SizedBox(height: 24),
                 Text(
                   title,
-                  style: const TextStyle(
-                    color: EchoColors.amber,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 2,
-                  ),
+                  style: EchoText.headline(size: 24),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
                 Text(
                   body,
-                  style: const TextStyle(
-                    color: EchoColors.textSecondary,
-                    height: 1.6,
-                  ),
+                  style: EchoText.body(size: 15),
                   textAlign: TextAlign.center,
                 ),
               ],

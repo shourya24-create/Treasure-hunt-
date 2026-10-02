@@ -1,53 +1,28 @@
 /**
- * answers.ts — Fragment answer definitions.
+ * answers.ts — AR activity answer definitions, one per campus checkpoint.
  *
- * ⚠️  PLACEHOLDER FILE — All `value` / `values` fields are TODO strings.
- *     The puzzle/AR team must replace every TODO_ANSWER_* before the event.
+ * ⚠️  PLACEHOLDER FILE — All `value` fields are TODO strings.
+ *     The puzzle/AR team must replace every TODO_ANSWER_* before the event,
+ *     and may change `mode` to "sequence", "set" or "numeric" (see schema.ts).
  *
- * The TypeScript structure (mode, shape) is final; only content changes needed.
+ * Keyed by checkpoint, never by step (GAMEPLAY.md §3).
  */
 
-import type { FragmentAnswerDef } from "../schema.js";
+import type { CampusCheckpointId, CheckpointAnswerDef } from "../schema.js";
 
-export const FRAGMENT_ANSWERS: FragmentAnswerDef[] = [
-  {
-    fragmentId: "F01",
-    answer: { mode: "exact", value: "TODO_ANSWER_F01", caseSensitive: false },
-  },
-  {
-    fragmentId: "F02",
-    answer: { mode: "exact", value: "TODO_ANSWER_F02", caseSensitive: false },
-  },
-  {
-    fragmentId: "F03",
-    answer: {
-      mode: "sequence",
-      values: ["TODO_ANSWER_F03_A", "TODO_ANSWER_F03_B", "TODO_ANSWER_F03_C"],
-    },
-  },
-  {
-    fragmentId: "F04",
-    answer: { mode: "exact", value: "TODO_ANSWER_F04", caseSensitive: false },
-  },
-  {
-    fragmentId: "F05",
-    answer: {
-      mode: "set",
-      values: ["TODO_ANSWER_F05_A", "TODO_ANSWER_F05_B"],
-    },
-  },
-  {
-    // TODO: Set real numeric value and tolerance before event.
-    fragmentId: "F06",
-    answer: { mode: "numeric", value: 0, tolerance: 0 },
-  },
-  {
-    fragmentId: "F07",
-    answer: { mode: "exact", value: "TODO_ANSWER_F07", caseSensitive: false },
-  },
+export const CHECKPOINT_ANSWERS: CheckpointAnswerDef[] = [
+  { checkpointId: "CP2", answer: { mode: "exact", value: "TODO_ANSWER_CP2", caseSensitive: false } },
+  { checkpointId: "CP3", answer: { mode: "exact", value: "TODO_ANSWER_CP3", caseSensitive: false } },
+  { checkpointId: "CP4", answer: { mode: "exact", value: "TODO_ANSWER_CP4", caseSensitive: false } },
+  { checkpointId: "CP5", answer: { mode: "exact", value: "TODO_ANSWER_CP5", caseSensitive: false } },
+  { checkpointId: "CP6", answer: { mode: "exact", value: "TODO_ANSWER_CP6", caseSensitive: false } },
+  { checkpointId: "CP7", answer: { mode: "exact", value: "TODO_ANSWER_CP7", caseSensitive: false } },
+  { checkpointId: "CP8", answer: { mode: "exact", value: "TODO_ANSWER_CP8", caseSensitive: false } },
 ];
 
-/** Returns the answer definition for a given fragmentId, or undefined. */
-export function getFragmentAnswer(fragmentId: string): FragmentAnswerDef | undefined {
-  return FRAGMENT_ANSWERS.find((a) => a.fragmentId === fragmentId);
+/** Returns the answer definition for a campus checkpoint, or undefined. */
+export function getCheckpointAnswer(
+  checkpointId: CampusCheckpointId
+): CheckpointAnswerDef | undefined {
+  return CHECKPOINT_ANSWERS.find((a) => a.checkpointId === checkpointId);
 }

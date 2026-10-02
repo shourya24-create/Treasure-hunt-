@@ -8,7 +8,7 @@ import {
   assertFails,
   assertSucceeds,
   initializeTestEnvironment,
-  RulesTestEnvironment,
+  type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
 
 import * as fs from "fs";
@@ -17,315 +17,200 @@ import * as path from "path";
 import {
   setDoc,
   getDoc,
+  getDocs,
+  updateDoc,
   doc,
   collection,
   addDoc,
+  query,
+  where,
 } from "firebase/firestore";
 
 let testEnv: RulesTestEnvironment;
 
-const RULES_PATH = path.resolve(__dirname, "../../firebase.rules");
+// Tests run from functions/, one level below firebase.rules.
+const RULES_PATH = path.resolve(process.cwd(), "../firebase.rules");
 
-// ── Setup ─────────────────────────────────────────────────────────────────────
+// Hooks live inside this block so they never run for another test file.
+describe("Firestore rules", () => {
+  // ── Setup ─────────────────────────────────────────────────────────────────────
 
-before(async () => {
-  testEnv = await initializeTestEnvironment({
-    projectId: "treasure-hunt-38935",
+  before(async () => {
+    testEnv = await initializeTestEnvironment({
+      projectId: "treasure-hunt-38935",
 
-    firestore: {
-      rules: fs.readFileSync(RULES_PATH, "utf8"),
-      host: "127.0.0.1",
-      port: 8080,
-    },
-  });
-});
-
-after(async () => {
-  await testEnv.cleanup();
-});
-
-afterEach(async () => {
-  await testEnv.clearFirestore();
-});
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-// Seed a team while security rules are disabled.
-async function seedTeam(
-  teamId: string,
-  members: string[]
-) {
-  await testEnv.withSecurityRulesDisabled(async (context) => {
-    const db = context.firestore();
-
-    await setDoc(doc(db, "teams", teamId), {
-      id: teamId,
-      name: "Test Team",
-      joinCode: "TTEST",
-      status: "playing",
-      createdAt: new Date(),
-      timeLimit: 3600,
-      pausedDuration: 0,
-      members,
-      currentFragmentIndex: 0,
+      firestore: {
+        rules: fs.readFileSync(RULES_PATH, "utf8"),
+        host: "127.0.0.1",
+        port: 8080,
+      },
     });
   });
-}
 
-// Seed a facilitator while security rules are disabled.
-async function seedFacilitator(
-  uid: string
-) {
-  await testEnv.withSecurityRulesDisabled(async (context) => {
-    const db = context.firestore();
+  after(async () => {
+    await testEnv.cleanup();
+  });
 
-    await setDoc(doc(db, "facilitators", uid), {
-      uid,
-      displayName: "Test Facilitator",
-      createdAt: new Date(),
+  afterEach(async () => {
+    await testEnv.clearFirestore();
+  });
+
+  // ── Helpers ───────────────────────────────────────────────────────────────────
+
+  // Seed a team and its player view while security rules are disabled.
+  async function seedTeam(
+    teamId: string,
+    deviceUid: string | null
+  ) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+
+      await setDoc(doc(db, "teams", teamId), {
+        id: teamId,
+        name: teamId,
+        route: { start: "CP2", direction: "forward" },
+        status: "playing",
+        deviceUid,
+        points: 100,
+      });
+      await setDoc(doc(db, "teamViews", teamId), {
+        id: teamId,
+        name: teamId,
+        status: "playing",
+        deviceUid,
+        points: 100,
+      });
+    });
+  }
+
+  // Seed a facilitator while security rules are disabled.
+  async function seedFacilitator(
+    uid: string
+  ) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+
+      await setDoc(doc(db, "facilitators", uid), {
+        uid,
+        displayName: "Test Facilitator",
+        createdAt: new Date(),
+      });
+    });
+  }
+
+  // ── Test: unauthenticated access ──────────────────────────────────────────────
+
+  describe("Unauthenticated access", () => {
+
+    it("denies reading a team, a team view and the game state", async () => {
+      await seedTeam("T1", "phoneA");
+
+      const db = testEnv.unauthenticatedContext().firestore();
+
+      await assertFails(getDoc(doc(db, "teams", "T1")));
+      await assertFails(getDoc(doc(db, "teamViews", "T1")));
+      await assertFails(getDoc(doc(db, "game", "state")));
     });
   });
-}
 
-// ── Test: unauthenticated access ──────────────────────────────────────────────
+  // ── Test: the team's phone ────────────────────────────────────────────────────
 
-describe("Unauthenticated access", () => {
+  describe("Team phone access", () => {
 
-  it("denies reading a team document", async () => {
-    await seedTeam("team1", ["userA"]);
+    it("allows the claimed phone to read its own team view", async () => {
+      await seedTeam("T1", "phoneA");
 
-    const unauth = testEnv.unauthenticatedContext();
+      const phone = testEnv.authenticatedContext("phoneA").firestore();
 
-    await assertFails(
-      getDoc(doc(unauth.firestore(), "teams", "team1"))
-    );
+      await assertSucceeds(getDoc(doc(phone, "teamViews", "T1")));
+      await assertSucceeds(
+        getDocs(query(collection(phone, "teamViews"), where("deviceUid", "==", "phoneA")))
+      );
+    });
+
+    it("denies the phone the server-side team document (route, decision result)", async () => {
+      await seedTeam("T1", "phoneA");
+
+      const phone = testEnv.authenticatedContext("phoneA").firestore();
+
+      await assertFails(getDoc(doc(phone, "teams", "T1")));
+    });
+
+    it("denies another phone reading the team view", async () => {
+      await seedTeam("T1", "phoneA");
+
+      const other = testEnv.authenticatedContext("phoneB").firestore();
+
+      await assertFails(getDoc(doc(other, "teamViews", "T1")));
+      await assertFails(getDocs(collection(other, "teamViews")));
+    });
+
+    it("denies every client write, even to the phone's own team", async () => {
+      await seedTeam("T1", "phoneA");
+
+      const phone = testEnv.authenticatedContext("phoneA").firestore();
+
+      await assertFails(updateDoc(doc(phone, "teamViews", "T1"), { points: 800 }));
+      await assertFails(updateDoc(doc(phone, "teams", "T1"), { points: 800 }));
+      await assertFails(setDoc(doc(phone, "teams", "T13"), { id: "T13", deviceUid: "phoneA" }));
+      await assertFails(setDoc(doc(phone, "game", "state"), { ended: false, paused: false }));
+    });
+
+    it("allows any signed-in phone to read the game state", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), "game", "state"), { ended: false, paused: false });
+      });
+
+      const phone = testEnv.authenticatedContext("phoneA").firestore();
+
+      await assertSucceeds(getDoc(doc(phone, "game", "state")));
+    });
   });
 
-  it("denies writing a new team", async () => {
-    const unauth = testEnv.unauthenticatedContext();
+  // ── Test: facilitator access ──────────────────────────────────────────────────
 
-    await assertFails(
-      setDoc(doc(unauth.firestore(), "teams", "newTeam"), {
-        id: "newTeam",
-        name: "X",
-        joinCode: "XXXXX",
-        status: "waiting",
-        createdAt: new Date(),
-        timeLimit: 3600,
-        pausedDuration: 0,
-        members: ["nobody"],
-        currentFragmentIndex: 0,
-      })
-    );
-  });
-});
+  describe("Facilitator access", () => {
 
-// ── Test: team member access ──────────────────────────────────────────────────
+    it("allows a facilitator to read every team (watchAllTeams)", async () => {
+      await seedTeam("T1", "phoneA");
+      await seedTeam("T2", null);
+      await seedFacilitator("fac1");
 
-describe("Team member access", () => {
+      const fac = testEnv.authenticatedContext("fac1").firestore();
 
-  it("allows a member to read their own team", async () => {
-    await seedTeam("team2", ["alice"]);
+      await assertSucceeds(getDoc(doc(fac, "teams", "T1")));
+      await assertSucceeds(getDocs(collection(fac, "teams")));
+      await assertSucceeds(getDocs(collection(fac, "facilitatorCommands")));
+    });
 
-    const alice = testEnv.authenticatedContext("alice");
+    it("denies a facilitator writing directly — actions go through the function", async () => {
+      await seedTeam("T1", "phoneA");
+      await seedFacilitator("fac2");
 
-    await assertSucceeds(
-      getDoc(doc(alice.firestore(), "teams", "team2"))
-    );
-  });
+      const fac = testEnv.authenticatedContext("fac2").firestore();
 
-  it("denies a non-member reading another team", async () => {
-    await seedTeam("team3", ["alice"]);
-
-    const bob = testEnv.authenticatedContext("bob");
-
-    await assertFails(
-      getDoc(doc(bob.firestore(), "teams", "team3"))
-    );
-  });
-
-  it("allows a member to create a team with themselves in members", async () => {
-    const charlie = testEnv.authenticatedContext("charlie");
-
-    await assertSucceeds(
-      setDoc(doc(charlie.firestore(), "teams", "team4"), {
-        id: "team4",
-        name: "Charlie",
-        joinCode: "CCCCC",
-        status: "waiting",
-        createdAt: new Date(),
-        timeLimit: 3600,
-        pausedDuration: 0,
-        members: ["charlie"],
-        currentFragmentIndex: 0,
-      })
-    );
-  });
-
-  it("denies creating a team without the creator in members", async () => {
-    const dave = testEnv.authenticatedContext("dave");
-
-    await assertFails(
-      setDoc(doc(dave.firestore(), "teams", "team5"), {
-        id: "team5",
-        name: "BadTeam",
-        joinCode: "BBBBB",
-        status: "waiting",
-        createdAt: new Date(),
-        timeLimit: 3600,
-        pausedDuration: 0,
-        members: ["someone_else"],
-        currentFragmentIndex: 0,
-      })
-    );
-  });
-});
-
-// ── Test: facilitator access ──────────────────────────────────────────────────
-
-describe("Facilitator access", () => {
-
-  it("allows a facilitator to read any team (watchAllTeams)", async () => {
-    await seedTeam("team6", ["alice"]);
-    await seedFacilitator("fac1");
-
-    const fac = testEnv.authenticatedContext("fac1");
-
-    await assertSucceeds(
-      getDoc(doc(fac.firestore(), "teams", "team6"))
-    );
-  });
-
-  it("allows a facilitator to write a facilitatorCommand", async () => {
-    await seedFacilitator("fac2");
-
-    const fac = testEnv.authenticatedContext("fac2");
-
-    await assertSucceeds(
-      addDoc(
-        collection(fac.firestore(), "facilitatorCommands"),
-        {
-          type: "hint",
-          teamId: "anyteam",
-          fragmentId: "F01",
-          hintLevel: 1,
+      await assertFails(updateDoc(doc(fac, "teams", "T1"), { points: 800 }));
+      await assertFails(
+        addDoc(collection(fac, "facilitatorCommands"), {
+          type: "recordHint",
+          teamId: "T1",
+          checkpointId: "CP2",
           issuedAt: new Date(),
           facilitatorUid: "fac2",
           processed: false,
-        }
-      )
-    );
-  });
-
-  it("denies a non-facilitator writing a facilitatorCommand", async () => {
-    const eve = testEnv.authenticatedContext("eve");
-
-    await assertFails(
-      addDoc(
-        collection(eve.firestore(), "facilitatorCommands"),
-        {
-          type: "hint",
-          teamId: "anyteam",
-          fragmentId: "F01",
-          hintLevel: 1,
-          issuedAt: new Date(),
-          facilitatorUid: "eve",
-          processed: false,
-        }
-      )
-    );
-  });
-
-  it("denies clients reading a facilitator document of another uid", async () => {
-    await seedFacilitator("fac3");
-
-    const eve = testEnv.authenticatedContext("eve");
-
-    await assertFails(
-      getDoc(doc(eve.firestore(), "facilitators", "fac3"))
-    );
-  });
-});
-
-// ── Test: hint sub-collection ─────────────────────────────────────────────────
-
-describe("Hint sub-collection", () => {
-
-  it("allows a team member to write a hint request", async () => {
-    await seedTeam("team7", ["alice"]);
-
-    await testEnv.withSecurityRulesDisabled(async (context) => {
-      const db = context.firestore();
-
-      await setDoc(
-        doc(db, "teams", "team7", "fragments", "F01"),
-        {
-          fragmentId: "F01",
-          status: "active",
-          evidence: [],
-          hintsUsed: 0,
-        }
+        })
       );
     });
 
-    const alice = testEnv.authenticatedContext("alice");
+    it("denies clients reading a facilitator document of another uid", async () => {
+      await seedFacilitator("fac3");
 
-    await assertSucceeds(
-      addDoc(
-        collection(
-          alice.firestore(),
-          "teams",
-          "team7",
-          "fragments",
-          "F01",
-          "hints"
-        ),
-        {
-          level: 1,
-          requestedAt: new Date(),
-        }
-      )
-    );
-  });
+      const eve = testEnv.authenticatedContext("eve").firestore();
 
-  it("denies a non-member writing a hint request", async () => {
-    await seedTeam("team8", ["alice"]);
-
-    await testEnv.withSecurityRulesDisabled(async (context) => {
-      const db = context.firestore();
-
-      await setDoc(
-        doc(db, "teams", "team8", "fragments", "F01"),
-        {
-          fragmentId: "F01",
-          status: "active",
-          evidence: [],
-          hintsUsed: 0,
-        }
-      );
+      await assertFails(getDoc(doc(eve, "facilitators", "fac3")));
     });
-
-    const bob = testEnv.authenticatedContext("bob");
-
-    await assertFails(
-      addDoc(
-        collection(
-          bob.firestore(),
-          "teams",
-          "team8",
-          "fragments",
-          "F01",
-          "hints"
-        ),
-        {
-          level: 1,
-          requestedAt: new Date(),
-        }
-      )
-    );
   });
 });
 
 // Mocha entry point
 export { };
-
