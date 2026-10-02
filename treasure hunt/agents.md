@@ -1,7 +1,10 @@
 # The Echo Protocol — Agent Rules
 
-**Read `GAMEPLAY.md` first.** It defines the event flow, routes and story rules;
-build against it and do not invent gameplay that isn't there.
+**Read these first, in this order.** Build against them and do not invent
+gameplay, screens or styling that isn't there.
+1. `GAMEPLAY.md` — event flow, routes, scoring, story rules.
+2. `UI.md` — every screen, route and widget of the Flutter app.
+3. `DESIGN_SYSTEM.md` — colours, typography, texture, component rules.
 
 ## Scope boundary (hard rule)
 This project has two independent workstreams: backend (Firebase/Flutter, this repo
