@@ -1,5 +1,8 @@
 # The Echo Protocol — Agent Rules
 
+**Read `GAMEPLAY.md` first.** It defines the event flow, routes and story rules;
+build against it and do not invent gameplay that isn't there.
+
 ## Scope boundary (hard rule)
 This project has two independent workstreams: backend (Firebase/Flutter, this repo
 owner) and field AR app (Vite/Three.js/MindAR, owned by a teammate, puzzle design
