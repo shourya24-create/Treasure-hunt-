@@ -101,7 +101,6 @@ describe("Firestore rules", () => {
   // ── Test: unauthenticated access ──────────────────────────────────────────────
 
   describe("Unauthenticated access", () => {
-
     it("denies reading a team, a team view and the game state", async () => {
       await seedTeam("T1", "phoneA");
 
@@ -116,7 +115,6 @@ describe("Firestore rules", () => {
   // ── Test: the team's phone ────────────────────────────────────────────────────
 
   describe("Team phone access", () => {
-
     it("allows the claimed phone to read its own team view", async () => {
       await seedTeam("T1", "phoneA");
 
@@ -170,7 +168,6 @@ describe("Firestore rules", () => {
   // ── Test: facilitator access ──────────────────────────────────────────────────
 
   describe("Facilitator access", () => {
-
     it("allows a facilitator to read every team (watchAllTeams)", async () => {
       await seedTeam("T1", "phoneA");
       await seedTeam("T2", null);

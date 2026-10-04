@@ -9,10 +9,13 @@
 import { expect } from "chai";
 import { Timestamp } from "firebase-admin/firestore";
 import {
+  CODE_ATTEMPTS,
+  CODE_LOCK_MS,
   GAME_DURATION_MS,
   applyAckReward,
   applyArrival,
   applyArrivedFinal,
+  applyCancelViewing,
   applyClaim,
   applyDecision,
   applyForceComplete,
@@ -21,6 +24,7 @@ import {
   applyHint,
   applyMoveToEnd,
   applyPause,
+  applyReopen,
   applyReset,
   applyResolveHelp,
   applySolve,
@@ -127,14 +131,27 @@ describe("routes", () => {
 describe("one phone per team", () => {
   it("refuses a second phone and a wrong password", () => {
     const team = newTeam("T1", now());
-    expectThrows(() => applyClaim(team, PHONE, "WRONG", now()), /Invalid team ID or password/);
-    applyClaim(team, PHONE, "TODO_LOGIN_T1", now());
-    applyClaim(team, PHONE, "todo_login_t1", now()); // same phone again is fine
-    expectThrows(
-      () => applyClaim(team, "phone-2", "TODO_LOGIN_T1", now()),
-      /active on another phone/
-    );
+    expect(applyClaim(team, PHONE, "WRONG", now())).to.deep.equal({
+      claimed: false, message: "Invalid team ID or password.",
+    });
+    expect(team.deviceUid).to.be.null;
+
+    expect(applyClaim(team, PHONE, "TODO_LOGIN_T1", now())).to.deep.equal({ claimed: true });
+    expect(applyClaim(team, PHONE, "todo_login_t1", now())).to.deep.equal({ claimed: true }); // same phone again is fine
+    expect(applyClaim(team, "phone-2", "TODO_LOGIN_T1", now())).to.deep.include({ claimed: false });
+    expect(team.deviceUid).to.equal(PHONE);
     expectThrows(() => assertDevice(team, "phone-2"), /not logged in for this team/);
+  });
+
+  it("locks for a short while after several wrong passwords in a row", () => {
+    const team = newTeam("T1", now());
+    for (let i = 0; i < CODE_ATTEMPTS; i++) applyClaim(team, PHONE, "WRONG", now());
+
+    // Even the right password must wait out the lock.
+    expectThrows(() => applyClaim(team, PHONE, "TODO_LOGIN_T1", now()), /Too many wrong codes/);
+    const later = Timestamp.fromMillis(Date.now() + CODE_LOCK_MS + 1000);
+    expect(applyClaim(team, PHONE, "TODO_LOGIN_T1", later)).to.deep.equal({ claimed: true });
+    expect(team.loginGuard).to.deep.equal({ failures: 0, lockedUntil: null });
   });
 });
 
@@ -147,6 +164,21 @@ describe("CP1 gate code", () => {
       () => applyGateCode(team, newGame(now()), "TODO_GATE_T2", now()),
       /has not started/
     );
+  });
+
+  it("slows down guessing without costing points", () => {
+    const team = newTeam("T2", now());
+    const game = runningGame();
+    for (let i = 0; i < CODE_ATTEMPTS; i++) {
+      expect(applyGateCode(team, game, "GUESS", now())).to.deep.equal({ accepted: false });
+    }
+    expectThrows(() => applyGateCode(team, game, "TODO_GATE_T2", now()), /Too many wrong codes/);
+    expect(pointsOf(team)).to.equal(0);
+    // Wrong passwords from a stranger never lock the gate.
+    expect(team.loginGuard.failures).to.equal(0);
+
+    const later = Timestamp.fromMillis(Date.now() + CODE_LOCK_MS + 1000);
+    expect(applyGateCode(team, game, "TODO_GATE_T2", later)).to.deep.equal({ accepted: true });
   });
 
   it("rejects a wrong code with no penalty, then starts the run", () => {
@@ -229,6 +261,18 @@ describe("campus checkpoints", () => {
     const view = buildView(team);
     expect(view.objectHint).to.be.null;
     expect(view.chapters.map((c) => c.n)).to.deep.equal([1, 2, 3, 4, 5, 6, 7, 8]);
+
+    // The archive lists the same 8 completions, with what led to each one.
+    expect(view.archive.map((e) => e.n)).to.deep.equal([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(view.archive.map((e) => e.chapter.n)).to.deep.equal([1, 2, 3, 4, 5, 6, 7, 8]);
+    const [cp1, first, second] = view.archive;
+    expect(cp1.stationReaction).to.be.null;
+    expect(cp1.objectHint).to.be.null;
+    const [firstCp, secondCp] = team.checkpointsDone.map((d) => d.cp);
+    expect(first.locationClue).to.be.null; // the paper named it
+    expect(first.objectHint?.text).to.equal(`TODO_OBJECT_HINT_${firstCp}`);
+    expect(second.locationClue).to.equal(`TODO_CLUE_${secondCp}`);
+    expect(second.stationReaction?.text).to.equal(`TODO_REACTION_${secondCp}`);
   });
 
   it("gives two teams at different checkpoints the same chapter at the same step", () => {
@@ -261,6 +305,19 @@ describe("reward sequence", () => {
     applyAckReward(team);
     expect(buildView(team).pendingReward).to.be.null;
     expect(buildView(team).chapters.map((c) => c.n)).to.deep.equal([1, 2]);
+  });
+
+  it("does not mark a newer reward as played when an older chapter is acknowledged", () => {
+    const team = startedTeam("T1");
+    solveNext(team); // chapter 2 pending
+    // The phone finishes chapter 2 just as an admin force-completes the next checkpoint.
+    applyForceComplete(team, runningGame(), undefined, now());
+    applyAckReward(team, 2);
+    expect(buildView(team).pendingReward?.chapter.n).to.equal(3);
+
+    applyAckReward(team, 99); // a chapter that does not exist yet acknowledges nothing extra
+    applyAckReward(team, 1); // and an old one never moves it backwards
+    expect(team.rewardAck).to.equal(3);
   });
 });
 
@@ -438,6 +495,40 @@ describe("final", () => {
     expect(game.inHeadset).to.be.null;
     applyStartViewing(b, game, now());
     expect(game.inHeadset).to.equal("T7");
+  });
+
+  it("frees the headset when a viewing is cancelled", () => {
+    const game = runningGame();
+    const a = finishedCampus("T3");
+    const b = finishedCampus("T7");
+    applyArrivedFinal(a, game, now());
+    applyArrivedFinal(b, game, now());
+
+    applyStartViewing(b, game, now()); // tapped the wrong row
+    applyCancelViewing(b, game);
+    expect(game.inHeadset).to.be.null;
+    expect(game.finalQueue).to.deep.equal(["T3", "T7"]);
+    applyStartViewing(a, game, now());
+    expect(game.inHeadset).to.equal("T3");
+  });
+
+  it("sends a team back on campus when a mistaken END is reopened", () => {
+    const ended = { ...runningGame(), ended: true };
+    const midway = startedTeam("T4");
+    solveNext(midway);
+    const done = finishedCampus("T5");
+    applyArrivedFinal(midway, ended, now());
+    applyArrivedFinal(done, ended, now());
+
+    const reopened = { ...ended, ended: false };
+    applyReopen(midway, reopened, now());
+    applyReopen(done, reopened, now());
+
+    expect(midway.status).to.equal("playing");
+    expect(midway.finalArrivedAt).to.be.null;
+    expect(done.status).to.equal("atFinal"); // really finished: stays in the queue
+    expect(reopened.finalQueue).to.deep.equal(["T5"]);
+    expect(pointsOf(midway)).to.equal(200);
   });
 
   it("records the decision once, by the admin, after arrival", () => {

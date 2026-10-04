@@ -40,7 +40,7 @@ class FinalQueueView extends StatelessWidget {
           Center(
             child: Text(
               position > 0 ? '#$position' : '#—',
-              style: EchoText.mono(size: 96, weight: FontWeight.w700, spacing: 0),
+              style: EchoText.mono(size: 96, weight: FontWeight.w700),
             ),
           ),
         const SizedBox(height: 32),

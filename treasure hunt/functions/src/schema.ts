@@ -50,6 +50,7 @@ export type FacilitatorActionType =
   | "moveToEnd"
   | "arrivedFinal"
   | "startViewing"
+  | "cancelViewing"
   | "recordDecision"
   | "resolveHelp"
   | "pauseTeam"
@@ -60,9 +61,11 @@ export type FacilitatorActionType =
   | "reopenGame"
   | "releaseDevice"
   | "resetTeam"
+  | "resetEvent"
   | "seedTeams"
   | "listGateCodes"
-  | "contentStatus";
+  | "contentStatus"
+  | "ping";
 
 /** A desk volunteer runs the CP1 gate desk and the headset desk only (UI.md §1). */
 export type FacilitatorRole = "admin" | "desk";
@@ -97,6 +100,12 @@ export interface HintTaken {
   by: string;
 }
 
+/** Wrong-code counter: a short lock after several misses in a row. */
+export interface CodeGuard {
+  failures: number;
+  lockedUntil: Timestamp | null;
+}
+
 export interface TeamLocation {
   lat: number;
   lng: number;
@@ -115,6 +124,10 @@ export interface TeamDoc {
   /** Firebase Auth UID of the one phone allowed to play this team. */
   deviceUid: string | null;
   deviceClaimedAt: Timestamp | null;
+  /** Wrong team passwords in a row. */
+  loginGuard: CodeGuard;
+  /** Wrong gate codes in a row. Separate, so a stranger guessing passwords cannot lock the gate. */
+  gateGuard: CodeGuard;
   /** Gate code accepted; the campus run has started. */
   cp1DoneAt: Timestamp | null;
   cp1Via: "code" | "force" | null;
@@ -170,6 +183,24 @@ export interface PendingReward {
 }
 
 /**
+ * One cleared fragment, for the Archive Log. Numbered by order of completion,
+ * never by checkpoint, and only ever about a place the team has already been.
+ */
+export interface ArchiveEntry {
+  /** 1 = CP1, then the campus checkpoints in the order the team cleared them. */
+  n: number;
+  clearedAt: Timestamp;
+  /** The chapter this completion unlocked. */
+  chapter: ChapterView;
+  /** Null for CP1, which has no station. */
+  stationReaction: ReactionView | null;
+  /** The riddle that led here. Null when the paper named the place. */
+  locationClue: string | null;
+  /** Null for CP1, which has no scan object. */
+  objectHint: ObjectHintView | null;
+}
+
+/**
  * Everything the phone is allowed to know. Never holds an answer, the route,
  * the next checkpoint's ID, the points or whether the final decision was
  * correct (UI.md §3.2: points are never shown to players).
@@ -194,6 +225,8 @@ export interface TeamView {
   returnToBase: boolean;
   /** Unlocked chapters, in chapter order. */
   chapters: ChapterView[];
+  /** Cleared fragments, oldest first. */
+  archive: ArchiveEntry[];
   finalArrived: boolean;
   decision: FinalDecision | null;
   decidedAt: Timestamp | null;

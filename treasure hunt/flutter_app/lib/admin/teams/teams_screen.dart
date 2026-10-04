@@ -32,8 +32,10 @@ class TeamsScreen extends StatefulWidget {
 }
 
 class _TeamsScreenState extends State<TeamsScreen> {
-  int _sortColumn = 0;
-  bool _ascending = true;
+  // Static, so the sort outlives this State: /admin/teams and /admin/teams/:id
+  // are separate pages, and selecting a row must not reset the table.
+  static int _sortColumn = 0;
+  static bool _ascending = true;
 
   /// One comparable value per column, in the order of the table header.
   List<Comparable<dynamic>> _keys(TeamDoc t) => [

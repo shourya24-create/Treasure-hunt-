@@ -3,8 +3,8 @@
 ///
 /// The reaction is looked up by checkpoint, the chapter by step (GAMEPLAY.md
 /// §3). The first playback cannot be skipped: CONTINUE appears when the audio
-/// ends. Finishing acknowledges the reward to the server, so a reload never
-/// replays it; the Mission tab then shows the next objective.
+/// ends. Finishing acknowledges the chapter just played to the server, so a
+/// reload never replays it; the tabs then come back with the next fragment open.
 library;
 
 import 'package:flutter/material.dart';
@@ -46,8 +46,10 @@ class _RewardSequenceViewState extends State<RewardSequenceView> {
       _error = null;
     });
     try {
-      await context.read<TeamProvider>().ackReward();
-      // The view stream now clears pendingReward and the Mission tab moves on.
+      // Names the chapter just played, so a completion that lands at the same
+      // moment (an admin force-complete, say) is not marked as played unseen.
+      await context.read<TeamProvider>().ackReward(widget.reward.chapter.n);
+      // The view stream now clears pendingReward and the tabs come back.
     } catch (e) {
       if (mounted) setState(() => _error = readableError(e));
     } finally {

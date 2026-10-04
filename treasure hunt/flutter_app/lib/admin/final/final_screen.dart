@@ -86,6 +86,48 @@ class FinalScreen extends StatelessWidget {
     }
   }
 
+  /// First come, first served: only the head of the queue starts on one tap.
+  /// Another team may still go first, since the head team may have stepped
+  /// out, but the club member confirms who is being skipped.
+  Future<void> _startViewing(BuildContext context, TeamDoc t, List<TeamDoc> ahead) async {
+    if (ahead.isNotEmpty) {
+      final ok = await ConfirmDialog.show(
+        context,
+        title: 'Start ${t.id} out of turn',
+        consequence: '${ahead.map((a) => a.label).join(', ')} arrived first and '
+            '${ahead.length == 1 ? 'is' : 'are'} still waiting. Start ${t.id} '
+            'only if they have stepped out. They keep their place in the queue.',
+        confirmLabel: 'Start ${t.id}',
+      );
+      if (!ok || !context.mounted) return;
+    }
+    await runAdminAction(
+      context,
+      'startViewing',
+      teamId: t.id,
+      done: 'Headset on · ${t.id}',
+    );
+  }
+
+  Future<void> _cancelViewing(BuildContext context, TeamDoc t) async {
+    final ok = await ConfirmDialog.show(
+      context,
+      title: 'Cancel viewing',
+      consequence: 'Undoes START VIEWING for ${t.id}. The headset is free again '
+          'and ${t.id} waits at its place in the queue. No decision is recorded.',
+      // Not "Cancel viewing": the dialog's own way out is already CANCEL.
+      confirmLabel: 'Free the headset',
+    );
+    if (ok && context.mounted) {
+      await runAdminAction(
+        context,
+        'cancelViewing',
+        teamId: t.id,
+        done: 'Viewing cancelled · ${t.id}',
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final data = context.watch<AdminDataProvider>();
@@ -96,6 +138,16 @@ class FinalScreen extends StatelessWidget {
       ..sort((a, b) => a.finalArrivedAt!.compareTo(b.finalArrivedAt!));
     final notArrived = data.teams.where((t) => t.finalArrivedAt == null).toList();
 
+    // The queue follows game.finalQueue, the list each phone reads its place
+    // from, so the desk and a phone never disagree. A team that list has not
+    // caught up with yet waits at the end.
+    final undecided = arrived.where((t) => t.decision == null);
+    final queue = [
+      for (final id in game.finalQueue) ...undecided.where((t) => t.id == id),
+      ...undecided.where((t) => !game.finalQueue.contains(t.id)),
+    ];
+    final decided = arrived.where((t) => t.decision != null);
+
     return EchoPage(
       maxWidth: 760,
       children: [
@@ -103,18 +155,17 @@ class FinalScreen extends StatelessWidget {
         const SizedBox(height: 16),
         if (arrived.isEmpty)
           const StatusTag('No team has arrived at the final yet', status: EchoStatus.idle),
-        for (var i = 0; i < arrived.length; i++) ...[
+        for (final t in [...queue, ...decided]) ...[
           _ArrivedRow(
-            position: i + 1,
-            team: arrived[i],
+            team: t,
             game: game,
-            onStartViewing: () => runAdminAction(
+            onStartViewing: () => _startViewing(
               context,
-              'startViewing',
-              teamId: arrived[i].id,
-              done: 'Headset on · ${arrived[i].id}',
+              t,
+              queue.takeWhile((q) => q.id != t.id).toList(),
             ),
-            onRecordDecision: () => _recordDecision(context, arrived[i]),
+            onCancelViewing: () => _cancelViewing(context, t),
+            onRecordDecision: () => _recordDecision(context, t),
           ),
           const SizedBox(height: 8),
         ],
@@ -163,24 +214,26 @@ class FinalScreen extends StatelessWidget {
 
 class _ArrivedRow extends StatelessWidget {
   const _ArrivedRow({
-    required this.position,
     required this.team,
     required this.game,
     required this.onStartViewing,
+    required this.onCancelViewing,
     required this.onRecordDecision,
   });
 
-  final int position;
   final TeamDoc team;
   final GameState game;
   final VoidCallback onStartViewing;
+  final VoidCallback onCancelViewing;
   final VoidCallback onRecordDecision;
 
   @override
   Widget build(BuildContext context) {
     final decided = team.decision != null;
-    final inHeadset = game.inHeadset == team.id;
+    final inHeadset = !decided && game.inHeadset == team.id;
     final headsetBusy = game.inHeadset != null;
+    // The number this team's phone shows. A decided team has left the queue.
+    final place = decided ? -1 : game.finalQueue.indexOf(team.id);
 
     final tag = decided
         ? const StatusTag('Decided', status: EchoStatus.done)
@@ -197,9 +250,13 @@ class _ArrivedRow extends StatelessWidget {
         runSpacing: 10,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          Text(
-            position.toString().padLeft(2, '0'),
-            style: EchoText.mono(size: 18, color: EchoColors.textMuted),
+          // Fixed width, so rows with and without a number stay aligned.
+          SizedBox(
+            width: 28,
+            child: Text(
+              place < 0 ? '' : (place + 1).toString().padLeft(2, '0'),
+              style: EchoText.mono(size: 18, color: EchoColors.textMuted),
+            ),
           ),
           SizedBox(
             width: 170,
@@ -221,9 +278,10 @@ class _ArrivedRow extends StatelessWidget {
               'RECORDED ${formatClock(team.decidedAt!)}',
               style: EchoText.mono(size: 12, color: EchoColors.textSecondary),
             )
-          else if (inHeadset)
-            EchoButton.primary(label: 'Record decision', onPressed: onRecordDecision)
-          else
+          else if (inHeadset) ...[
+            EchoButton.primary(label: 'Record decision', onPressed: onRecordDecision),
+            EchoButton.ghost(label: 'Cancel viewing', onPressed: onCancelViewing),
+          ] else
             EchoButton.ghost(
               label: 'Start viewing',
               // One headset: one team at a time.

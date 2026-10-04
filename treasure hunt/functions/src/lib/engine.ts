@@ -11,13 +11,15 @@
  */
 
 import { HttpsError } from "firebase-functions/v2/https";
-import type { Timestamp } from "firebase-admin/firestore";
+import { Timestamp } from "firebase-admin/firestore";
 import {
   ALL_CHECKPOINTS,
   CAMPUS_CHECKPOINTS,
   type CampusCheckpointId,
   type ChapterView,
   type CheckpointId,
+  type CodeGuard,
+  type ArchiveEntry,
   type FinalDecision,
   type GameState,
   type ObjectHintView,
@@ -42,6 +44,10 @@ export const DECISION_BONUS = 100;
 
 /** The event lasts 2 hours from "Start game". */
 export const GAME_DURATION_MS = 2 * 60 * 60 * 1000;
+
+/** Wrong codes allowed in a row before the short lock, and how long it lasts. */
+export const CODE_ATTEMPTS = 5;
+export const CODE_LOCK_MS = 30 * 1000;
 
 // ── Route ─────────────────────────────────────────────────────────────────────
 
@@ -111,6 +117,8 @@ export function newTeam(id: TeamId, now: Timestamp): TeamDoc {
     paused: false,
     deviceUid: null,
     deviceClaimedAt: null,
+    loginGuard: { failures: 0, lockedUntil: null },
+    gateGuard: { failures: 0, lockedUntil: null },
     cp1DoneAt: null,
     cp1Via: null,
     checkpointsDone: [],
@@ -186,6 +194,38 @@ export function unlockedChapters(team: TeamDoc): ChapterView[] {
 }
 
 /**
+ * Cleared fragments for the Archive Log, oldest first. Each entry repeats what
+ * the team was shown on the way to that checkpoint, so it reveals nothing new.
+ */
+export function archiveOf(team: TeamDoc): ArchiveEntry[] {
+  if (!team.cp1DoneAt) return [];
+  const entries: ArchiveEntry[] = [
+    {
+      n: 1,
+      clearedAt: team.cp1DoneAt,
+      chapter: getChapter(1),
+      stationReaction: null,
+      locationClue: null,
+      objectHint: null,
+    },
+  ];
+  team.checkpointsDone.forEach((done, i) => {
+    const content = CHECKPOINT_CONTENT[done.cp];
+    // Same rule as targetOf(): the paper named the first campus checkpoint.
+    const showClue = i > 0 || team.routeOverride !== null;
+    entries.push({
+      n: i + 2,
+      clearedAt: done.solvedAt,
+      chapter: getChapter(i + 2),
+      stationReaction: content.stationReaction,
+      locationClue: showClue ? content.locationClue : null,
+      objectHint: content.objectHint,
+    });
+  });
+  return entries;
+}
+
+/**
  * What the phone still has to play for the latest completion: the station
  * reaction (by checkpoint), then the chapter (by step). Null once played.
  */
@@ -212,6 +252,7 @@ export function buildView(team: TeamDoc): TeamView {
     activeCheckpoint: team.status === "playing" ? team.arrival?.cp ?? null : null,
     ...targetOf(team),
     chapters: unlockedChapters(team),
+    archive: archiveOf(team),
     finalArrived: team.finalArrivedAt !== null,
     decision: team.decision,
     decidedAt: team.decidedAt,
@@ -260,6 +301,33 @@ function assertPlaying(team: TeamDoc): void {
   }
 }
 
+// ── Code attempt limit ────────────────────────────────────────────────────────
+// A wrong code costs no points (§4.2). The lock only stops a script from
+// trying every code: 5 misses in a row, then a 30-second wait.
+
+function assertUnlocked(guard: CodeGuard, now: Timestamp): void {
+  const until = guard.lockedUntil;
+  if (until && now.toMillis() < until.toMillis()) {
+    const seconds = Math.ceil((until.toMillis() - now.toMillis()) / 1000);
+    throw new HttpsError(
+      "resource-exhausted",
+      `Too many wrong codes. Wait ${seconds} seconds.`
+    );
+  }
+}
+
+function noteWrongCode(guard: CodeGuard, now: Timestamp): void {
+  guard.failures += 1;
+  if (guard.failures >= CODE_ATTEMPTS) {
+    guard.lockedUntil = Timestamp.fromMillis(now.toMillis() + CODE_LOCK_MS);
+  }
+}
+
+function noteRightCode(guard: CodeGuard): void {
+  guard.failures = 0;
+  guard.lockedUntil = null;
+}
+
 // ── Completion helpers ────────────────────────────────────────────────────────
 
 function completeCp1(team: TeamDoc, via: "code" | "force", now: Timestamp): void {
@@ -275,38 +343,49 @@ function completeCheckpoint(
   via: "solve" | "force",
   now: Timestamp
 ): void {
-  const arrived = team.arrival?.cp === cp;
+  const arrival = team.arrival?.cp === cp ? team.arrival : null;
   team.checkpointsDone.push({
     cp,
-    arrivedAt: arrived ? team.arrival!.at : null,
+    arrivedAt: arrival ? arrival.at : null,
     solvedAt: now,
     via,
   });
-  if (arrived) team.arrival = null;
+  if (arrival) team.arrival = null;
   team.lastProgressAt = now;
 }
 
 // ── Player actions ────────────────────────────────────────────────────────────
 
-/** Binds the team to one phone. A second phone is refused (§4.1). */
+export type ClaimResult =
+  | { claimed: true }
+  | { claimed: false; message: string };
+
+/**
+ * Binds the team to one phone. A second phone is refused (§4.1).
+ * A refusal is returned, not thrown, so the wrong-password count is saved.
+ */
 export function applyClaim(
   team: TeamDoc,
   uid: string,
   loginCode: string,
   now: Timestamp
-): void {
+): ClaimResult {
+  assertUnlocked(team.loginGuard, now);
   if (!codeMatches(TEAMS[team.id].loginCode, loginCode)) {
-    throw new HttpsError("permission-denied", "Invalid team ID or password.");
+    noteWrongCode(team.loginGuard, now);
+    return { claimed: false, message: "Invalid team ID or password." };
   }
-  if (team.deviceUid === uid) return;
+  noteRightCode(team.loginGuard);
+  if (team.deviceUid === uid) return { claimed: true };
   if (team.deviceUid !== null) {
-    throw new HttpsError(
-      "permission-denied",
-      "This team is active on another phone. Ask a club member."
-    );
+    return {
+      claimed: false,
+      message: "This team is active on another phone. Ask a club member.",
+    };
   }
   team.deviceUid = uid;
   team.deviceClaimedAt = now;
+  return { claimed: true };
 }
 
 /**
@@ -321,7 +400,12 @@ export function applyGateCode(
 ): { accepted: boolean } {
   if (team.cp1DoneAt) return { accepted: true };
   assertCampusOpen(team, game, now);
-  if (!codeMatches(TEAMS[team.id].gateCode, code)) return { accepted: false };
+  assertUnlocked(team.gateGuard, now);
+  if (!codeMatches(TEAMS[team.id].gateCode, code)) {
+    noteWrongCode(team.gateGuard, now);
+    return { accepted: false };
+  }
+  noteRightCode(team.gateGuard);
   completeCp1(team, "code", now);
   return { accepted: true };
 }
@@ -373,9 +457,15 @@ export function applySolve(
   return { correct: true };
 }
 
-/** The phone has played the station reaction and chapter for its latest completion. */
-export function applyAckReward(team: TeamDoc): void {
-  team.rewardAck = completionsOf(team);
+/**
+ * The phone has played the reward up to chapter `chapter`. Naming the chapter
+ * stops a completion that lands at the same moment (e.g. an admin
+ * force-complete) from being marked as played unseen.
+ */
+export function applyAckReward(team: TeamDoc, chapter?: number): void {
+  const completions = completionsOf(team);
+  const played = chapter === undefined ? completions : Math.min(chapter, completions);
+  team.rewardAck = Math.max(team.rewardAck, played);
 }
 
 /** "I NEED HELP" — raises an alert on the admin dashboard until resolved. */
@@ -513,6 +603,29 @@ export function applyStartViewing(team: TeamDoc, game: GameState, now: Timestamp
   }
   if (!team.viewingStartedAt) team.viewingStartedAt = now;
   game.inHeadset = team.id;
+}
+
+/** Undoes a mistaken "Start viewing" so the next team can use the headset. */
+export function applyCancelViewing(team: TeamDoc, game: GameState): void {
+  if (team.decision !== null) {
+    throw new HttpsError("failed-precondition", "This team's decision is already recorded.");
+  }
+  team.viewingStartedAt = null;
+  if (game.inHeadset === team.id) game.inHeadset = null;
+}
+
+/**
+ * After "Reopen game": a team that was marked arrived only because the game
+ * had been ended, and still has checkpoints to visit, goes back on campus.
+ */
+export function applyReopen(team: TeamDoc, game: GameState, now: Timestamp): void {
+  if (campusClosed(game, now)) return;
+  if (team.status !== "atFinal" || team.decision !== null) return;
+  if (team.cp1DoneAt !== null && nextCheckpoint(team) === null) return;
+  team.status = team.cp1DoneAt ? "playing" : "waiting";
+  team.finalArrivedAt = null;
+  team.viewingStartedAt = null;
+  leaveFinal(team, game);
 }
 
 /** Recorded once by the club member; cannot be changed. Finish time = now. */

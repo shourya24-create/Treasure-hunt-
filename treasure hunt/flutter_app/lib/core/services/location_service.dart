@@ -2,9 +2,11 @@
 ///
 /// Each team is tracked on its one phone for the whole event (GAMEPLAY.md
 /// §4.1). A heartbeat goes out every 30 seconds, carrying the latest GPS fix
-/// when there is one; that is how the admin dashboard knows the phone is
-/// online. A denied permission is not fatal: the game still plays, and the
-/// top bar shows that GPS is off.
+/// when there is a recent one; that is how the admin dashboard knows the
+/// phone is online. Each answer brings the server's time back, which keeps
+/// the game clock right on a phone whose own clock is not. A denied
+/// permission is not fatal: the game still plays, and the top bar shows that
+/// GPS is off.
 library;
 
 import 'dart:async';
@@ -12,6 +14,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
+import '../providers/game_clock_provider.dart';
 import 'team_service.dart';
 
 enum GpsState {
@@ -29,14 +32,21 @@ enum GpsState {
 }
 
 class LocationService {
-  LocationService({required TeamService teamService}) : _teams = teamService;
+  LocationService({required TeamService teamService, GameClockProvider? clock})
+      : _teams = teamService,
+        _gameClock = clock;
 
   static const _heartbeat = Duration(seconds: 30);
 
   /// A fix worse than this many metres counts as weak.
   static const _weakAccuracy = 50.0;
 
+  /// A fix older than this is not sent. The server stamps whatever arrives
+  /// as taken now, so an old position would show on the admin map as new.
+  static const _freshFix = Duration(seconds: 60);
+
   final TeamService _teams;
+  final GameClockProvider? _gameClock;
   StreamSubscription<Position>? _sub;
   Timer? _timer;
   String? _teamId;
@@ -89,7 +99,12 @@ class LocationService {
               ? GpsState.weak
               : GpsState.sharing;
         },
-        onError: (Object _) => gps.value = GpsState.off,
+        onError: (Object _) {
+          // The fix from before the failure says nothing about where the
+          // phone is now.
+          _last = null;
+          gps.value = GpsState.off;
+        },
       );
     } catch (_) {
       gps.value = GpsState.off;
@@ -99,7 +114,11 @@ class LocationService {
   void _send() {
     final teamId = _teamId;
     if (teamId == null) return;
-    final fix = _last;
+    final last = _last;
+    // Both times are this phone's own clock, so a wrong clock cancels out.
+    final fresh = last != null &&
+        DateTime.now().difference(last.timestamp) <= _freshFix;
+    final fix = fresh ? last : null;
 
     // A dropped heartbeat is harmless; the next one replaces it.
     _teams
@@ -109,6 +128,9 @@ class LocationService {
           lng: fix?.longitude,
           accuracy: fix?.accuracy,
         )
+        .then<void>((serverNow) {
+          if (serverNow != null) _gameClock?.syncWithServer(serverNow);
+        })
         .catchError((Object _) {});
   }
 

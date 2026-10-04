@@ -38,12 +38,17 @@ export function requireAuth(request: CallableRequest): string {
 
 // ── requireFacilitator ────────────────────────────────────────────────────────
 
-/** The only actions a desk volunteer may send: the gate desk and the headset desk. */
+/**
+ * The only actions a desk volunteer may send: the gate desk and the headset
+ * desk, plus the ping every dashboard uses to read the server clock.
+ */
 const DESK_ACTIONS: readonly FacilitatorActionType[] = [
   "listGateCodes",
   "arrivedFinal",
   "startViewing",
+  "cancelViewing",
   "recordDecision",
+  "ping",
 ];
 
 /**

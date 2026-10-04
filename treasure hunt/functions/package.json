@@ -11,7 +11,8 @@
     "logs": "firebase functions:log",
     "seed": "npm run build && node lib/scripts/seed.js",
     "test:unit": "mocha --require ts-node/register --timeout 10000 test/engine.test.ts",
-    "test": "npm run build && firebase emulators:exec --only auth,firestore,functions \"mocha --require ts-node/register --timeout 30000 'test/**/*.test.ts'\""
+    "test": "npm run build && firebase emulators:exec --only auth,firestore,functions \"mocha --require ts-node/register --timeout 30000 'test/**/*.test.ts'\"",
+    "test:running": "mocha --require ts-node/register --timeout 30000 'test/**/*.test.ts'"
   },
   "engines": {
     "node": "20"

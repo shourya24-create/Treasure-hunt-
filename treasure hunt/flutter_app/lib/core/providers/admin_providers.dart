@@ -17,6 +17,7 @@ import '../models/team.dart';
 import '../services/admin_service.dart';
 import '../services/auth_service.dart';
 import '../services/team_service.dart';
+import 'game_clock_provider.dart';
 
 // ── Session ───────────────────────────────────────────────────────────────────
 
@@ -29,12 +30,19 @@ class AdminSessionProvider extends ChangeNotifier {
     _authSub = _auth.authStateChanges.listen(_bind);
   }
 
+  /// How long to wait before asking again when the role could not be read.
+  static const _retryAfter = Duration(seconds: 5);
+
   final AuthService _auth;
   final AdminService _admin;
   StreamSubscription<User?>? _authSub;
 
   FacilitatorRole? _role;
   bool _resolved = false;
+
+  /// Goes up with every sign-in and sign-out, so a lookup that a newer one
+  /// has overtaken can tell, and drops its answer.
+  int _bindings = 0;
 
   /// Null for players and for anyone without a facilitator document.
   FacilitatorRole? get role => _role;
@@ -45,6 +53,7 @@ class AdminSessionProvider extends ChangeNotifier {
   bool get isAdmin => _role == FacilitatorRole.admin;
 
   Future<void> _bind(User? user) async {
+    final binding = ++_bindings;
     // Team phones sign in anonymously and are never facilitators.
     if (user == null || user.isAnonymous) {
       _role = null;
@@ -54,13 +63,29 @@ class AdminSessionProvider extends ChangeNotifier {
     }
     _resolved = false;
     notifyListeners();
-    _role = await _admin.roleOf(user.uid);
+
+    FacilitatorRole? role;
+    while (true) {
+      try {
+        role = await _admin.roleOf(user.uid);
+        break;
+      } catch (_) {
+        // Not read is not "not a facilitator". Stay unresolved and ask again,
+        // so a dashboard reloaded on a bad network opens once it clears.
+        await Future<void>.delayed(_retryAfter);
+      }
+      if (binding != _bindings) return;
+    }
+    if (binding != _bindings) return;
+    _role = role;
     _resolved = true;
     notifyListeners();
   }
 
   @override
   void dispose() {
+    // Ends a lookup that is still waiting or retrying.
+    _bindings++;
     _authSub?.cancel();
     super.dispose();
   }
@@ -102,9 +127,11 @@ class AdminDataProvider extends ChangeNotifier {
     required AdminService adminService,
     required TeamService teamService,
     required AdminSessionProvider session,
+    required GameClockProvider clock,
   })  : _admin = adminService,
         _teamService = teamService,
-        _session = session {
+        _session = session,
+        _gameClock = clock {
     _session.addListener(_sync);
     _sync();
   }
@@ -112,6 +139,7 @@ class AdminDataProvider extends ChangeNotifier {
   final AdminService _admin;
   final TeamService _teamService;
   final AdminSessionProvider _session;
+  final GameClockProvider _gameClock;
 
   StreamSubscription<List<TeamDoc>>? _teamsSub;
   StreamSubscription<GameState>? _gameSub;
@@ -168,10 +196,16 @@ class AdminDataProvider extends ChangeNotifier {
         notifyListeners();
       },
     );
-    _gameSub = _teamService.watchGame().listen((game) {
-      _game = game;
-      notifyListeners();
-    });
+    _gameSub = _teamService.watchGame().listen(
+      (game) {
+        _game = game;
+        notifyListeners();
+      },
+      // The last known game state stays on screen. Any signed-in user may
+      // read it, so an error here means the session is gone, and the teams
+      // stream above is the one that reports that.
+      onError: (Object _) {},
+    );
     _commandsSub = _admin.watchCommands().listen(
       (commands) {
         _commands = commands;
@@ -179,6 +213,24 @@ class AdminDataProvider extends ChangeNotifier {
       },
       onError: (Object _) {},
     );
+    _ping();
+  }
+
+  // ── server clock ──────────────────────────────────────────────────────────────
+
+  /// Asks the server for its time, so the countdown is right on a laptop
+  /// whose clock is not, even before the first action is sent.
+  Future<void> _ping() async {
+    try {
+      _correctClock(await _admin.act('ping'));
+    } catch (_) {
+      // The next action that goes through corrects the clock instead.
+    }
+  }
+
+  void _correctClock(Map<String, dynamic> response) {
+    final serverNow = serverTimeOf(response);
+    if (serverNow != null) _gameClock.syncWithServer(serverNow);
   }
 
   // ── actions ───────────────────────────────────────────────────────────────────
@@ -191,12 +243,13 @@ class AdminDataProvider extends ChangeNotifier {
     String? decision,
   }) async {
     try {
-      await _admin.act(
+      final response = await _admin.act(
         type,
         teamId: teamId,
         checkpointId: checkpointId,
         decision: decision,
       );
+      _correctClock(response);
       return null;
     } catch (e) {
       return readableError(e);
@@ -214,9 +267,13 @@ class AdminDataProvider extends ChangeNotifier {
       .where((t) => t.onCampus && t.arrivalCp == null && t.nextCheckpoint == cp)
       .toList();
 
-  /// Teams the game expects to be reachable right now.
+  /// Teams the game expects to reach by phone right now. A team at the final
+  /// is in the room with the club, so its phone no longer matters.
   bool _expectedOnline(TeamDoc t) =>
-      t.deviceUid != null && _game.started && t.status != TeamStatus.finished;
+      t.deviceUid != null &&
+      _game.started &&
+      t.status != TeamStatus.atFinal &&
+      t.status != TeamStatus.finished;
 
   bool isOffline(TeamDoc t, DateTime now) {
     final seen = t.lastSeenAt;

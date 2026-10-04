@@ -89,10 +89,10 @@ class _PreflightScreenState extends State<PreflightScreen> {
                 detail: 'Needed to scan the object at each checkpoint.',
                 state: _camera,
                 onRun: _checkCamera,
-                fix: 'Android: tap the lock icon in the address bar → Permissions '
-                    '→ Camera → Allow, then press RETRY.\n'
-                    'iPhone: Settings → Safari → Camera → Allow, then reload '
-                    'this page.',
+                fix: 'Android: tap the lock icon in the address bar, then '
+                    'Permissions, then Camera, then Allow. Press RETRY.\n'
+                    'iPhone: open Settings, then Safari, then Camera, then '
+                    'Allow. Reload this page.',
               ),
               const SizedBox(height: 12),
               _CheckRow(
@@ -100,10 +100,10 @@ class _PreflightScreenState extends State<PreflightScreen> {
                 detail: 'Lets the club see where your team is.',
                 state: _location,
                 onRun: _checkLocation,
-                fix: 'Android: tap the lock icon in the address bar → Permissions '
-                    '→ Location → Allow, then press RETRY.\n'
-                    'iPhone: Settings → Privacy → Location Services → Safari '
-                    '→ While Using, then reload this page.',
+                fix: 'Android: tap the lock icon in the address bar, then '
+                    'Permissions, then Location, then Allow. Press RETRY.\n'
+                    'iPhone: open Settings, then Privacy, then Location '
+                    'Services, then Safari, then While Using. Reload this page.',
               ),
               const SizedBox(height: 12),
               _CheckRow(

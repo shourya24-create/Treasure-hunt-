@@ -6,7 +6,8 @@
  * until a facilitator releases the device.
  */
 
-import { onCall } from "firebase-functions/v2/https";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { getFirestore } from "firebase-admin/firestore";
 import { parseString, parseTeamId, requireAuth } from "./lib/guards.js";
 import { applyClaim } from "./lib/engine.js";
 import { mutateTeam } from "./lib/store.js";
@@ -17,7 +18,27 @@ export const claimTeam = onCall(async (request) => {
   const teamId = parseTeamId(data.teamId);
   const loginCode = parseString(data.loginCode, "loginCode");
 
-  await mutateTeam(teamId, (team, _game, now) => applyClaim(team, uid, loginCode, now));
+  // One phone plays for one team.
+  const held = await getFirestore()
+    .collection("teams")
+    .where("deviceUid", "==", uid)
+    .limit(2)
+    .get();
+  const other = held.docs.find((doc) => doc.id !== teamId);
+  if (other) {
+    throw new HttpsError(
+      "failed-precondition",
+      `This phone is already logged in for ${other.id}. Ask a club member.`
+    );
+  }
+
+  // The refusal is thrown only after the transaction, so a wrong password is counted.
+  const result = await mutateTeam(teamId, (team, _game, now) =>
+    applyClaim(team, uid, loginCode, now)
+  );
+  if (!result.claimed) {
+    throw new HttpsError("permission-denied", result.message);
+  }
 
   return { teamId };
 });

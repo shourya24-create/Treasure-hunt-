@@ -55,7 +55,7 @@ class _MapScreenState extends State<MapScreen> {
           options: MapOptions(
             initialCenter: LatLng(campusCenter.lat, campusCenter.lng),
             initialZoom: 17,
-            onTap: (_, __) => setState(() => _selected = null),
+            onTap: (_, _) => setState(() => _selected = null),
           ),
           children: [
             ColorFiltered(
@@ -79,7 +79,9 @@ class _MapScreenState extends State<MapScreen> {
                   Marker(
                     point: LatLng(t.location!.lat, t.location!.lng),
                     width: 64,
-                    height: 34,
+                    // The marker bounds the pin's tap area: at least 48 px
+                    // tall, so a pin can be hit on a touch screen (UI.md §8).
+                    height: 48,
                     child: TeamChip(
                       t.id,
                       status: teamStatusColor(t, data, now),
@@ -89,6 +91,19 @@ class _MapScreenState extends State<MapScreen> {
               ],
             ),
           ],
+        ),
+        // Required by the OpenStreetMap tile usage policy. On its own surface:
+        // straight on the tiles the text is lost among the street labels.
+        Positioned(
+          right: 8,
+          bottom: 8,
+          child: EchoCard(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            child: Text(
+              '© OpenStreetMap contributors',
+              style: EchoText.mono(size: 10, color: EchoColors.textSecondary),
+            ),
+          ),
         ),
         if (located.isEmpty)
           const Positioned(

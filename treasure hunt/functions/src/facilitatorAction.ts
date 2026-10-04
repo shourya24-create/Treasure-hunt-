@@ -21,12 +21,14 @@ import {
 } from "./lib/guards.js";
 import {
   applyArrivedFinal,
+  applyCancelViewing,
   applyDecision,
   applyForceComplete,
   applyHint,
   applyMoveToEnd,
   applyPause,
   applyReleaseDevice,
+  applyReopen,
   applyReset,
   applyResolveHelp,
   applyStartViewing,
@@ -34,7 +36,7 @@ import {
   applyUndoHint,
 } from "./lib/engine.js";
 import { contentStatus } from "./lib/contentStatus.js";
-import { mutateGame, mutateTeam, seedTeams } from "./lib/store.js";
+import { mutateGame, mutateTeam, resetEvent, seedTeams } from "./lib/store.js";
 import { TEAMS } from "./content/teams.js";
 import {
   TEAM_IDS,
@@ -43,7 +45,7 @@ import {
 } from "./schema.js";
 
 /** Read-only lookups are not worth an audit entry. */
-const UNLOGGED: readonly string[] = ["listGateCodes", "contentStatus"];
+const UNLOGGED: readonly string[] = ["listGateCodes", "contentStatus", "ping"];
 
 export const facilitatorAction = onCall(async (request) => {
   const { uid: facilitatorUid, role } = await requireFacilitator(request);
@@ -100,6 +102,13 @@ export const facilitatorAction = onCall(async (request) => {
         game.ended = false;
         game.endedAt = null;
       });
+      // Teams marked arrived while the game was ended go back on campus.
+      const teams = await db.collection("teams").get();
+      for (const doc of teams.docs) {
+        await mutateTeam(parseTeamId(doc.id), (team, game, now) =>
+          applyReopen(team, game, now)
+        );
+      }
       break;
     }
 
@@ -150,6 +159,12 @@ export const facilitatorAction = onCall(async (request) => {
       );
       break;
     }
+    case "cancelViewing": {
+      await mutateTeam(parseTeamId(teamId), (team, game) =>
+        applyCancelViewing(team, game)
+      );
+      break;
+    }
     case "recordDecision": {
       const choice = parseDecision(decision);
       await mutateTeam(parseTeamId(teamId), (team, game, now) =>
@@ -195,6 +210,10 @@ export const facilitatorAction = onCall(async (request) => {
       result = await seedTeams(db);
       break;
     }
+    case "resetEvent": {
+      await resetEvent(db);
+      break;
+    }
 
     // ── read-only lookups ────────────────────────────────────────────────
     // Gate codes live only in content/teams.ts; the gate desk needs them to
@@ -209,6 +228,10 @@ export const facilitatorAction = onCall(async (request) => {
       result = { items: contentStatus() };
       break;
     }
+    // Nothing to do: the dashboard only wants the serverTime every response carries.
+    case "ping": {
+      break;
+    }
 
     default: {
       throw new HttpsError("invalid-argument", `Unknown action type: ${type}`);
@@ -218,5 +241,6 @@ export const facilitatorAction = onCall(async (request) => {
   // Mark command processed.
   if (!UNLOGGED.includes(type)) await cmdRef.update({ processed: true });
 
-  return { success: true, type, ...result };
+  // serverTime lets the dashboard correct its countdown if the laptop's clock is off.
+  return { success: true, type, serverTime: Timestamp.now().toMillis(), ...result };
 });

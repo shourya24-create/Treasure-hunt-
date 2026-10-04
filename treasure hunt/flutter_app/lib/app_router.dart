@@ -1,7 +1,7 @@
 /// app_router.dart — GoRouter configuration for the Echo Protocol Flutter app.
 ///
 /// One app, two route trees (UI.md §1): the player side at `/…` with a
-/// 3-tab shell, and the admin side at `/admin/…` with a rail. The redirect
+/// 4-tab shell, and the admin side at `/admin/…` with a rail. The redirect
 /// keeps each role where it belongs and re-runs whenever the team or the
 /// facilitator session changes.
 library;
@@ -22,12 +22,16 @@ import 'admin/teams/teams_screen.dart';
 import 'core/providers/admin_providers.dart';
 import 'core/providers/team_provider.dart';
 import 'core/services/admin_service.dart';
-import 'player/journal/journal_screen.dart';
+import 'player/archive/archive_screen.dart';
+import 'player/fragments/fragments_screen.dart';
+import 'player/home/home_screen.dart';
 import 'player/login/login_screen.dart';
-import 'player/mission/mission_screen.dart';
 import 'player/preflight/preflight_screen.dart';
+import 'player/profile/profile_screen.dart';
 import 'player/shell/player_shell.dart';
-import 'player/team/team_screen.dart';
+import 'theme.dart';
+import 'widgets/echo_button.dart';
+import 'widgets/echo_scaffold.dart';
 
 class AppRouter {
   AppRouter._();
@@ -45,43 +49,52 @@ class AppRouter {
           GoRoute(
             path: '/login',
             name: 'login',
-            builder: (_, __) => const LoginScreen(),
+            builder: (_, _) => const LoginScreen(),
           ),
           GoRoute(
             path: '/preflight',
             name: 'preflight',
-            builder: (_, __) => const PreflightScreen(),
+            builder: (_, _) => const PreflightScreen(),
           ),
 
-          // ── Player: 3 tabs, each keeps its scroll and state ────────────────
+          // ── Player: 4 tabs, each keeps its scroll and state ────────────────
           StatefulShellRoute.indexedStack(
-            builder: (_, __, navigationShell) =>
+            builder: (_, _, navigationShell) =>
                 PlayerShell(navigationShell: navigationShell),
             branches: [
               StatefulShellBranch(
                 routes: [
                   GoRoute(
                     path: '/',
-                    name: 'mission',
-                    builder: (_, __) => const MissionScreen(),
+                    name: 'home',
+                    builder: (_, _) => const HomeScreen(),
                   ),
                 ],
               ),
               StatefulShellBranch(
                 routes: [
                   GoRoute(
-                    path: '/journal',
-                    name: 'journal',
-                    builder: (_, __) => const JournalScreen(),
+                    path: '/fragments',
+                    name: 'fragments',
+                    builder: (_, _) => const FragmentsScreen(),
                   ),
                 ],
               ),
               StatefulShellBranch(
                 routes: [
                   GoRoute(
-                    path: '/team',
-                    name: 'team',
-                    builder: (_, __) => const TeamScreen(),
+                    path: '/archive',
+                    name: 'archive',
+                    builder: (_, _) => const ArchiveScreen(),
+                  ),
+                ],
+              ),
+              StatefulShellBranch(
+                routes: [
+                  GoRoute(
+                    path: '/profile',
+                    name: 'profile',
+                    builder: (_, _) => const ProfileScreen(),
                   ),
                 ],
               ),
@@ -108,11 +121,7 @@ class AppRouter {
             ],
           ),
         ],
-        errorBuilder: (_, state) => Scaffold(
-          body: Center(
-            child: Text('Page not found: ${state.error}'),
-          ),
-        ),
+        errorBuilder: (_, _) => const _NotFoundScreen(),
       );
 
   /// Admin tabs swap without a page transition, like tabs.
@@ -151,6 +160,40 @@ class AppRouter {
     if (team.view == null) return atLogin ? null : '/login';
     if (!team.preflightDone) return location == '/preflight' ? null : '/preflight';
     if (atLogin || inAdmin || location == '/preflight') return '/';
+    // Until the admin starts the game only Home and Profile open.
+    final gameTab = location == '/fragments' || location == '/archive';
+    if (gameTab && !team.game.started) return '/';
     return null;
   }
+}
+
+/// Shown for an address that matches no route: a mistyped or stale link.
+///
+/// The way back is "/" for everyone. The redirect above turns it into the
+/// Home tab for a team, the dashboard for a facilitator and the login for
+/// a phone that is not signed in.
+class _NotFoundScreen extends StatelessWidget {
+  const _NotFoundScreen();
+
+  @override
+  Widget build(BuildContext context) => EchoScaffold(
+        body: SafeArea(
+          child: EchoPage(
+            children: [
+              const SizedBox(height: 56),
+              Text('PAGE NOT FOUND', style: EchoText.headline(size: 40)),
+              const SizedBox(height: 16),
+              Text(
+                'There is nothing at this address.',
+                style: EchoText.body(size: 18),
+              ),
+              const SizedBox(height: 32),
+              EchoButton.primary(
+                label: 'Back to home',
+                onPressed: () => context.go('/'),
+              ),
+            ],
+          ),
+        ),
+      );
 }

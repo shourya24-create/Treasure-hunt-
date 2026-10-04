@@ -88,6 +88,24 @@ export async function mutateGame(fn: (game: GameState, now: Timestamp) => void):
   });
 }
 
+// ── resetEvent ────────────────────────────────────────────────────────────────
+
+/**
+ * Back to a fresh event: clock cleared, every team's progress wiped and every
+ * phone released. For the morning after a rehearsal — never during the event.
+ */
+export async function resetEvent(db: Firestore): Promise<void> {
+  const now = Timestamp.now();
+  const batch = db.batch();
+  batch.set(gameRef(db), newGame(now));
+  for (const id of TEAM_IDS) {
+    const team = newTeam(id, now);
+    batch.set(teamRef(db, id), team);
+    batch.set(viewRef(db, id), buildView(team));
+  }
+  await batch.commit();
+}
+
 // ── seedTeams ─────────────────────────────────────────────────────────────────
 
 /**

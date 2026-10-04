@@ -6,6 +6,8 @@
  *
  * Prerequisites (handled by `npm test`):
  *   firebase emulators:start --only auth,firestore,functions
+ * With the emulators already up, `npm run test:running` runs the same tests;
+ * it needs an empty database, because the teams are only seeded when missing.
  */
 
 import { getApps, initializeApp } from "firebase-admin/app";
@@ -95,9 +97,16 @@ async function expectRejects(promise: Promise<unknown>, message: RegExp | string
   expect.fail("Should have thrown");
 }
 
+/** The server clock a response carries: milliseconds. The emulator shares this machine's clock. */
+function expectServerTime(response: Record<string, unknown>) {
+  expect(response.serverTime).to.be.a("number");
+  expect(response.serverTime).to.be.closeTo(Date.now(), 60_000);
+}
+
 const FAC = "fac-test-1";
 const DESK = "desk-test-1";
 const admit = (data: Record<string, unknown>) => callFunction("facilitatorAction", data, FAC);
+const desk = (data: Record<string, unknown>) => callFunction("facilitatorAction", data, DESK);
 const team = async (id: string) => (await db.collection("teams").doc(id).get()).data()!;
 const view = async (id: string) => (await db.collection("teamViews").doc(id).get()).data()!;
 const game = async () => (await db.collection("game").doc("state").get()).data()!;
@@ -118,6 +127,10 @@ describe("Cloud Functions", () => {
       uid: DESK, displayName: "Test Desk", role: "desk", createdAt: Timestamp.now(),
     });
     await admit({ type: "seedTeams" });
+    // Teams or a clock left over from a rehearsal would fail the tests below one by one, confusingly.
+    const claimed = await db.collection("teams").where("deviceUid", "!=", null).limit(1).get();
+    const { startedAt, ended } = await game();
+    expect(claimed.empty && startedAt === null && !ended, "clear the emulator database first").to.be.true;
     await admit({ type: "startGame" });
   });
 
@@ -147,6 +160,14 @@ describe("Cloud Functions", () => {
       );
     });
 
+    it("refuses a second team to a phone that already holds one", async () => {
+      await expectRejects(
+        callFunction("claimTeam", { teamId: "T2", loginCode: "TODO_LOGIN_T2" }, "phoneA"),
+        "This phone is already logged in for T1."
+      );
+      expect((await team("T2")).deviceUid).to.be.null;
+    });
+
     it("rejects a wrong login code and unauthenticated calls", async () => {
       await expectRejects(
         callFunction("claimTeam", { teamId: "T2", loginCode: "WRONG" }, "phoneC"),
@@ -163,6 +184,24 @@ describe("Cloud Functions", () => {
       await admit({ type: "releaseDevice", teamId: "T3" });
       await callFunction("claimTeam", { teamId: "T3", loginCode: "TODO_LOGIN_T3" }, "phoneE");
       expect((await team("T3")).deviceUid).to.equal("phoneE");
+    });
+
+    it("locks a team for a short while after five wrong passwords in a row", async () => {
+      for (let i = 0; i < 5; i++) {
+        await expectRejects(
+          callFunction("claimTeam", { teamId: "T11", loginCode: "WRONG" }, "phone11"),
+          "Invalid team ID or password."
+        );
+      }
+      // Each refusal was saved, so even the right password must now wait out the lock.
+      await expectRejects(
+        callFunction("claimTeam", { teamId: "T11", loginCode: "TODO_LOGIN_T11" }, "phone11"),
+        "Too many wrong codes"
+      );
+
+      const t = await team("T11");
+      expect(t.loginGuard.failures).to.equal(5);
+      expect(t.deviceUid).to.be.null;
     });
   });
 
@@ -214,6 +253,25 @@ describe("Cloud Functions", () => {
       expect((await team("T4")).points).to.equal(200);
     });
 
+    it("locks the gate for a short while after five wrong codes, at no cost in points", async () => {
+      await callFunction("claimTeam", { teamId: "T12", loginCode: "TODO_LOGIN_T12" }, "phone12");
+      for (let i = 0; i < 5; i++) {
+        const wrong = await callFunction("enterGateCode", { teamId: "T12", code: "NOPE" }, "phone12");
+        expect(wrong.accepted).to.be.false;
+      }
+      await expectRejects(
+        callFunction("enterGateCode", { teamId: "T12", code: "TODO_GATE_T12" }, "phone12"),
+        "Too many wrong codes"
+      );
+
+      const t = await team("T12");
+      expect(t.status).to.equal("waiting");
+      expect(t.points).to.equal(0);
+      // Its own counter: wrong gate codes never count against the team password.
+      expect(t.gateGuard.failures).to.equal(5);
+      expect(t.loginGuard.failures).to.equal(0);
+    });
+
     it("rejects a phone that is not logged in for the team", async () => {
       await start("T5", "phone5");
       await expectRejects(
@@ -224,6 +282,18 @@ describe("Cloud Functions", () => {
         callFunction("reportLocation", { teamId: "T5", lat: 19.07, lng: 72.9, accuracy: 8 }, "intruder"),
         "This phone is not logged in for this team."
       );
+    });
+
+    it("keeps a newer reward pending when the phone acknowledges an older chapter", async () => {
+      // An admin force-completes T5's first checkpoint while its phone is still playing chapter 1.
+      await admit({ type: "forceComplete", teamId: "T5" });
+      expect((await view("T5")).pendingReward.chapter.n).to.equal(2);
+
+      await callFunction("ackReward", { teamId: "T5", chapter: 1 }, "phone5");
+      expect((await view("T5")).pendingReward.chapter.n).to.equal(2);
+
+      await callFunction("ackReward", { teamId: "T5", chapter: 2 }, "phone5");
+      expect((await view("T5")).pendingReward).to.be.null;
     });
 
     it("counts a checkpoint once when two correct answers race", async () => {
@@ -242,14 +312,20 @@ describe("Cloud Functions", () => {
 
     it("stores the phone's heartbeat and latest GPS fix", async () => {
       await start("T7", "phone7");
-      await callFunction("reportLocation", { teamId: "T7" }, "phone7"); // location denied
+      const beat = await callFunction("reportLocation", { teamId: "T7" }, "phone7"); // location denied
       expect((await team("T7")).lastSeenAt).to.not.be.null;
       expect((await team("T7")).location).to.be.null;
 
-      await callFunction("reportLocation", { teamId: "T7", lat: 19.07, lng: 72.9, accuracy: 8 }, "phone7");
+      const fix = await callFunction(
+        "reportLocation", { teamId: "T7", lat: 19.07, lng: 72.9, accuracy: 8 }, "phone7"
+      );
       const t = await team("T7");
       expect(t.location.lat).to.equal(19.07);
       expect(t.status).to.equal("playing");
+
+      // With or without a fix, the answer carries the server clock for the phone's countdown.
+      expectServerTime(beat);
+      expectServerTime(fix);
     });
 
     it("raises a help request until an admin resolves it", async () => {
@@ -329,17 +405,37 @@ describe("Cloud Functions", () => {
         // The team still does the final.
         await admit({ type: "arrivedFinal", teamId: "T10" });
         expect((await team("T10")).status).to.equal("atFinal");
+        expect((await game()).finalQueue).to.include("T10");
       } finally {
         await admit({ type: "reopenGame" });
       }
       expect((await game()).ended).to.be.false;
+
+      // T10 was at the final only because the game had ended, with all 7
+      // checkpoints still to visit: reopening sends it back on campus.
+      const t = await team("T10");
+      expect(t.status).to.equal("playing");
+      expect(t.finalArrivedAt).to.be.null;
+      expect((await game()).finalQueue).to.not.include("T10");
+      expect((await view("T10")).finalArrived).to.be.false;
     });
 
     it("limits a desk volunteer to the gate desk and the final desk", async () => {
-      const desk = (data: Record<string, unknown>) => callFunction("facilitatorAction", data, DESK);
-
       const gate = await desk({ type: "listGateCodes" }) as { codes: Record<string, string> };
       expect(gate.codes.T5).to.equal("TODO_GATE_T5");
+
+      // T10 is back on campus, so it reaches the final the normal way: all 7 done.
+      for (let i = 0; i < 7; i++) await admit({ type: "forceComplete", teamId: "T10" });
+      await desk({ type: "arrivedFinal", teamId: "T10" });
+      expect((await game()).finalQueue).to.deep.equal(["T10"]);
+
+      // A mistaken "start viewing" can be taken back, which frees the headset.
+      await desk({ type: "startViewing", teamId: "T10" });
+      expect((await game()).inHeadset).to.equal("T10");
+      await desk({ type: "cancelViewing", teamId: "T10" });
+      expect((await game()).inHeadset).to.be.null;
+      expect((await team("T10")).viewingStartedAt).to.be.null;
+
       await desk({ type: "startViewing", teamId: "T10" });
       await desk({ type: "recordDecision", teamId: "T10", decision: "KEEP" });
       expect((await team("T10")).status).to.equal("finished");
@@ -349,6 +445,7 @@ describe("Cloud Functions", () => {
         "Admin access required for this action."
       );
       await expectRejects(desk({ type: "endGame" }), "Admin access required for this action.");
+      await expectRejects(desk({ type: "resetEvent" }), "Admin access required for this action.");
     });
 
     it("reports content status without leaking any content", async () => {
@@ -357,6 +454,34 @@ describe("Cloud Functions", () => {
       };
       expect(status.items).to.have.length(8);
       expect(JSON.stringify(status)).to.not.include("TODO_");
+    });
+
+    it("answers a ping with the server clock, for the desk too, and logs nothing", async () => {
+      expectServerTime(await admit({ type: "ping" }));
+      expectServerTime(await desk({ type: "ping" }));
+
+      const log = await db.collection("facilitatorCommands").where("type", "==", "ping").get();
+      expect(log.empty).to.be.true;
+    });
+  });
+
+  // ── resetEvent ────────────────────────────────────────────────────────────────
+  // Keep this block last: it wipes every team the tests above have set up.
+
+  describe("resetEvent", () => {
+    it("clears the clock, wipes every team and releases every phone", async () => {
+      await admit({ type: "resetEvent" });
+
+      const teams = await db.collection("teams").get();
+      expect(teams.size).to.equal(12);
+      for (const doc of teams.docs) {
+        expect(doc.data(), doc.id).to.deep.include({ status: "waiting", deviceUid: null, points: 0 });
+        // The view is what lets a phone read its team, so it must let go as well.
+        expect((await view(doc.id)).deviceUid, doc.id).to.be.null;
+      }
+      expect(await game()).to.deep.include({
+        startedAt: null, ended: false, finalQueue: [], inHeadset: null,
+      });
     });
   });
 });

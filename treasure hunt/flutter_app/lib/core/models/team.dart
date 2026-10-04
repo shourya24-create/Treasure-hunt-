@@ -27,6 +27,48 @@ String teamLabel(String id, String name) => name == id ? id : '$id · $name';
 
 // ── Player side ───────────────────────────────────────────────────────────────
 
+/// One cleared fragment, as the Archive Log shows it. Numbered by order of
+/// completion, never by checkpoint, so it cannot reveal the route.
+class ArchiveEntry {
+  const ArchiveEntry({
+    required this.n,
+    required this.chapter,
+    this.clearedAt,
+    this.stationReaction,
+    this.locationClue,
+    this.objectHint,
+  });
+
+  /// 1 = CP1, then the campus checkpoints in the order the team cleared them.
+  final int n;
+  final DateTime? clearedAt;
+
+  /// The chapter this fragment unlocked.
+  final ChapterView chapter;
+
+  /// Null for CP1, which has no station.
+  final ReactionView? stationReaction;
+
+  /// The riddle that led here. Null when the paper named the place.
+  final String? locationClue;
+
+  /// Null for CP1, which has no scan object.
+  final ObjectHintView? objectHint;
+
+  static ArchiveEntry? fromMap(Map<String, dynamic>? m) {
+    final chapter = asMap(m?['chapter']);
+    if (m == null || chapter == null) return null;
+    return ArchiveEntry(
+      n: (m['n'] as num?)?.toInt() ?? 0,
+      clearedAt: _date(m['clearedAt']),
+      chapter: ChapterView.fromMap(chapter),
+      stationReaction: ReactionView.fromMap(asMap(m['stationReaction'])),
+      locationClue: m['locationClue'] as String?,
+      objectHint: ObjectHintView.fromMap(asMap(m['objectHint'])),
+    );
+  }
+}
+
 class TeamView {
   const TeamView({
     required this.id,
@@ -37,6 +79,7 @@ class TeamView {
     required this.step,
     required this.returnToBase,
     required this.chapters,
+    required this.archive,
     required this.finalArrived,
     this.pendingReward,
     this.activeCheckpoint,
@@ -72,6 +115,9 @@ class TeamView {
 
   /// Unlocked chapters, in chapter order.
   final List<ChapterView> chapters;
+
+  /// Cleared fragments, oldest first.
+  final List<ArchiveEntry> archive;
   final bool finalArrived;
 
   /// 'DESTROY' | 'KEEP', once a club member has recorded it.
@@ -97,6 +143,10 @@ class TeamView {
           .map((c) => ChapterView.fromMap(Map<String, dynamic>.from(c as Map)))
           .toList()
         ..sort((a, b) => a.n.compareTo(b.n)),
+      archive: [
+        for (final e in d['archive'] as List? ?? const [])
+          if (ArchiveEntry.fromMap(asMap(e)) case final entry?) entry,
+      ]..sort((a, b) => a.n.compareTo(b.n)),
       finalArrived: d['finalArrived'] as bool? ?? false,
       decision: d['decision'] as String?,
       decidedAt: _date(d['decidedAt']),
@@ -180,7 +230,7 @@ class TeamDoc {
   final TeamStatus status;
   final bool paused;
 
-  /// The seeded start checkpoint — which paper variant the team gets.
+  /// The seeded start checkpoint, before any admin swap or reorder.
   final String routeStart;
 
   /// Full visiting order, after any admin swap or reorder.
@@ -291,8 +341,10 @@ class TeamDoc {
   /// On campus with a checkpoint still to reach.
   bool get onCampus => status == TeamStatus.playing && nextCheckpoint != null;
 
-  /// The paper variant the volunteer hands this team (GAMEPLAY.md §4.2).
-  String get paperVariant => 'P-$routeStart';
+  /// The paper variant the volunteer hands this team (GAMEPLAY.md §4.2). The
+  /// paper names the first checkpoint the team will visit, so it follows the
+  /// current order: an admin may reroute a team before CP1.
+  String get paperVariant => 'P-${order.firstOrNull ?? routeStart}';
 
   // Score breakdown (GAMEPLAY.md §6), so organisers can explain any result.
   int get checkpointPoints => 100 * ((cp1Done ? 1 : 0) + step);

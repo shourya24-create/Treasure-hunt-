@@ -13,11 +13,14 @@ import { mutateTeam } from "./lib/store.js";
 
 export const ackReward = onCall(async (request) => {
   const uid = requireAuth(request);
-  const teamId = parseTeamId((request.data as { teamId?: unknown }).teamId);
+  const data = request.data as { teamId?: unknown; chapter?: unknown };
+  const teamId = parseTeamId(data.teamId);
+  // The chapter the phone has just played. Optional for older clients.
+  const chapter = typeof data.chapter === "number" ? data.chapter : undefined;
 
   await mutateTeam(teamId, (team) => {
     assertDevice(team, uid);
-    applyAckReward(team);
+    applyAckReward(team, chapter);
   });
 
   return { ok: true };

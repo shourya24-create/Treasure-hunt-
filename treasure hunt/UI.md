@@ -18,7 +18,7 @@ it, but must not change what the screen does.
 
 | Side | Path | Device | Navigation |
 |---|---|---|---|
-| Player | `/…` | One phone per team, outdoors | Bottom `NavigationBar`, 3 tabs |
+| Player | `/…` | One phone per team, outdoors | Bottom bar: 4 tabs + SCAN in the middle |
 | Admin | `/admin/…` | Laptop in the base room; phone for desk volunteers | Left `NavigationRail` (drawer under 900 px width) |
 
 Role routing (in `app_router.dart` redirect):
@@ -108,15 +108,27 @@ Wi-Fi can't break typography. No rounded sans-serif anywhere.
 ## 3. Player app
 
 ### 3.1 Shell
-`StatefulShellRoute` with 3 branches. Each tab keeps its scroll and state when you switch.
+`StatefulShellRoute` with 4 branches. Each tab keeps its scroll and state when you switch.
+The bottom bar (`PlayerNavBar`) has five slots: two tabs, the **SCAN** action, two tabs.
 
-| Tab | Route | Icon idea |
-|---|---|---|
-| **MISSION** | `/` | radar/signal |
-| **JOURNAL** | `/journal` | document |
-| **TEAM** | `/team` | group |
+| Slot | Route | Icon idea | What it is |
+|---|---|---|---|
+| **HOME** | `/` | house | What to do now + the story briefing (§3.4) |
+| **FRAGMENTS** | `/fragments` | grid | All 8 fragments; the open one holds the clue (§3.6) |
+| **SCAN** | *(action)* | viewfinder | Opens the field app scanner (§5). Not a tab. |
+| **ARCHIVE** | `/archive` | archive box | Log of every cleared fragment (§3.7) |
+| **PROFILE** | `/profile` | person | Team info, this phone, help (§3.7a) |
 
-Active tab = `highlightSelect` icon + label. Inactive = `textMuted`.
+- Active tab = `highlightSelect` icon + label. Inactive = `textMuted`.
+- **SCAN** is the primary action, so it is a `signalGreen` block, never gold.
+- **Before the admin starts the game only HOME and PROFILE open.** FRAGMENTS,
+  SCAN and ARCHIVE stay in place, dimmed, with a lock icon; tapping one shows
+  "UNLOCKS WHEN THE GAME STARTS". The router also redirects `/fragments` and
+  `/archive` to `/` until then.
+- SCAN is dimmed whenever there is nothing to scan (all fragments done, final,
+  time's up) and says why when tapped.
+- **Focus mode:** the Gate Code and Reward views cover every tab and hide the
+  bar (§3.4a).
 
 ### 3.2 Top bar (`PlayerTopBar`, on every tab)
 
@@ -134,27 +146,47 @@ Active tab = `highlightSelect` icon + label. Inactive = `textMuted`.
 - **Never shown:** points, route, checkpoint names.
 
 ### 3.3 Fragment tracker (`FragmentTracker`)
-8 slots in a row on the Mission tab, numbered **1–8 by order of completion**, not by
+8 slots in a row on the Home card and the Fragments tab, numbered **1–8 by order of completion**, not by
 checkpoint ID, so the tracker never reveals the route.
 - Solved: filled `signalGreenDim`, static.
 - Current: `signalGreenBright` outline, pulsing.
 - Ahead: `hairline` outline, `textMuted` number.
 
-### 3.4 MISSION tab: one screen, driven by state
+### 3.4 HOME tab (`/`): what to do now, then the briefing
 
-`MissionScreen` listens to the team's Firestore document and shows **one view at a
-time**. A reload always lands on the correct view (GAMEPLAY §9).
+`HomeScreen` is the player's landing page. Top to bottom:
 
-| # | View | When | Content | Nav shown? |
-|---|---|---|---|---|
-| 1 | `WaitingRoomView` | Before CP1 opens | Label "CP1 LOCKED", headline "LISTEN TO THE BRIEFING", a scan-line hero, a slowly pulsing signal glyph | Yes |
-| 2 | `GateCodeView` | Briefing over, gate code not yet entered | Headline "ENTER ACCESS CODE", one large mono `CodeField` (gold when focused), primary button "VERIFY". Wrong code → field flashes red + "INVALID CODE", no penalty. | **No** (focus mode) |
-| 3 | `RewardSequenceView` | Right after the gate code or after any solve | Plays in order: **station reaction** (skipped after CP1) → **Echo chapter** (`ChapterPlayer`) → **next objective**. First playback can't be skipped; "CONTINUE" appears when the audio ends. | **No** |
-| 4 | `ObjectiveView` | A campus checkpoint is next (the home screen in play) | `FragmentTracker`; label "CURRENT OBJECTIVE"; **location clue** (serif body in a card); **object hint** (image in a card with label "SCAN TARGET"); a big primary **SCAN** button. After CP1 the clue card says "Go to the location from your paper", because the app never names the first checkpoint. | Yes |
-| 5 | `ReturnToBaseView` | All 7 campus checkpoints done | Scan-line hero, headline "RETURN TO BASE", one serif line | Yes |
-| 6 | `FinalQueueView` | Marked "arrived at final" | Headline "HEADSET QUEUE", a huge mono **#N** position (live), "Report to the club member at the headset desk". When it's their turn: "YOUR TURN" + bright green pulse. | Yes |
-| 7 | `MissionCompleteView` | Decision recorded by admin | Headline "DECISION RECORDED". **Never** shows which decision was correct, the points or the rank. | Yes |
-| 8 | `GameOverView` | 2:00 reached, decision not recorded yet | One red flash, headline "TIME'S UP", "Return to the starting room". Then becomes `FinalQueueView` once marked arrived. | Yes |
+1. **NOW card.** One raised card, driven by the team's Firestore document, the
+   game state and the clock, so a reload always shows the right one (GAMEPLAY §9).
+   It holds a status tag, a headline, one or two serif lines and, once the game
+   has started, the `FragmentTracker`.
+
+| State | When | Card |
+|---|---|---|
+| Waiting | Before the admin starts the game | Amber border, "STANDING BY", headline "WAITING FOR START", "Wait for the admin to start the game…" |
+| Objective | A campus checkpoint is next | Green border, "FRAGMENT 4 OPEN", headline "FIND FRAGMENT 4", ghost button "OPEN FRAGMENTS". Once the scan matched: "SIGNAL LOCKED" / "FINISH THE ACTIVITY". |
+| Return to base | All 7 campus checkpoints done | "ALL FRAGMENTS RECOVERED", headline "RETURN TO BASE" |
+| Final queue | Marked "arrived at final" | Headline "HEADSET QUEUE" + a huge mono **#N** (live). Their turn: "YOUR TURN" + bright green pulse. |
+| Complete | Decision recorded by admin | Headline "DECISION RECORDED". **Never** shows which decision was correct, the points or the rank. |
+| Time's up | 2:00 reached, decision not recorded yet | Red border, one red flash, headline "TIME'S UP", "Return to the starting room". |
+
+2. **The story.** Label "INCOMING TRANSMISSION", headline "THE ECHO PROTOCOL",
+   three short serif paragraphs: who Echo is and what the team must do.
+3. **How it works.** Five numbered step cards: Start, Find, Scan, Solve, Return.
+4. **Field rules.** One card with the 2-hour limit, one phone per team, own
+   route, location on, where help and the archive are.
+
+The words live in `player/home/home_content.dart` so the story team can edit
+them without touching layout. They must never name a place, a checkpoint or
+the final decision. Scan-lines show on Home in the Waiting, Return to base,
+Complete and Time's up states.
+
+### 3.4a Focus views (cover every tab, no bottom bar)
+
+| View | When | Content |
+|---|---|---|
+| `GateCodeView` | Game started, gate code not yet entered | Headline "ENTER ACCESS CODE", one large mono `CodeField` (gold when focused), primary button "VERIFY". Wrong code → field flashes red + "INVALID CODE", no penalty. |
+| `RewardSequenceView` | Right after the gate code or after any solve | Plays in order: **station reaction** (skipped after CP1) → **Echo chapter** (`ChapterPlayer`). First playback can't be skipped; "CONTINUE" appears when the audio ends. Then the tabs come back with the next fragment open. |
 
 ### 3.5 Full-screen routes (above the tabs, no nav)
 
@@ -164,16 +196,40 @@ time**. A reload always lands on the correct view (GAMEPLAY §9).
 | `/preflight` | `PreflightScreen` | Shown once after the first login, **before lights-off**. Three checklist rows: CAMERA, LOCATION, SOUND (test tone). Each row is ghost → live → done. "READY" is enabled only when all three are done. Denied permission → a red row + step-by-step fix text for Android and iPhone. |
 | `/field/scan` | *(field app, not Flutter)* | Opened by the SCAN button. See §5. |
 
-### 3.6 JOURNAL tab (`/journal`)
-- Label "ECHO TRANSMISSIONS". A vertical list of chapters **1–8 in chapter order**.
-- Unlocked chapter: card with headline "CHAPTER 3", duration (mono), play button,
-  and a "TRANSCRIPT" expander (serif body). Static `signalGreenDim` "RECEIVED" tag.
-- Currently playing: card raised, bright-green pulse dot.
-- Locked chapter: hairline outline, `textMuted` "CHAPTER 6 · ENCRYPTED", not tappable.
+### 3.6 FRAGMENTS tab (`/fragments`)
+- Header "FRAGMENTS" + mono "3 / 8 RECOVERED", then the `FragmentTracker`.
+- A list of fragments **1–8 by order of completion** (never by checkpoint ID,
+  so the list cannot reveal the route). Only one is open at a time; the next
+  unlocks when the one before it is cleared.
+- **Recovered:** card "FRAGMENT 2", `signalGreenDim` "RECOVERED" tag, the time
+  (mono). Tapping it opens the Archive.
+- **Open** (the fragment in play): raised card with a `signalGreenBright`
+  border. Label "WHERE TO GO" + the **location clue** (one serif sentence);
+  label "SCAN TARGET" + the **object hint** image and text; a big primary
+  **SCAN** button. After CP1 the clue says "Go to the location from your
+  paper", because the app never names the first checkpoint. Once the scan
+  matched: "SIGNAL LOCKED" and the button becomes "RESUME ACTIVITY".
+- **Ahead:** hairline outline, `textMuted` "FRAGMENT 6 · ENCRYPTED", lock icon,
+  not tappable. After the campus game closes: "FRAGMENT 6 · NOT RECOVERED".
 - **Never shows** checkpoint names, places or the route.
 
-### 3.7 TEAM tab (`/team`)
-- Team name + ID (mono), checkpoints done, elapsed time.
+### 3.7 ARCHIVE tab (`/archive`)
+- Header "ARCHIVE LOG" + mono "3 / 8 ENTRIES". One collapsible card per
+  cleared fragment, oldest first; the newest is open by default.
+- Card header: "FRAGMENT 3" + "RECOVERED 14:32".
+- Open card, top to bottom: the **Echo chapter** that fragment unlocked
+  (`ChapterPlayer`: play button + "TRANSCRIPT" expander), the **station
+  reaction** text, then the **clue** and **scan target** the team solved.
+  Fragment 1 (CP1) has only the chapter.
+- Currently playing: card raised, bright-green "PLAYING" tag.
+- Nothing cleared yet: hairline box "NOTHING RECOVERED YET".
+- An entry only repeats what the team was already shown, so it **never
+  reveals** anything about the route ahead.
+
+### 3.7a PROFILE tab (`/profile`)
+A team plays on one shared login, so the profile is the team's.
+- Team name (headline), then a card: team ID, team name, fragments recovered,
+  elapsed time (all mono).
 - "THIS PHONE" card showing location sharing and connection, with live, amber or red dots.
 - **"I NEED HELP"** ghost button → confirm → sends an alert to the admin with the GPS
   position. Afterwards: "Help requested at 14:32" (mono).
@@ -315,12 +371,12 @@ The scanner and activities are web pages built by the AR team at `/field/` on th
 **same domain**, so they share the Firebase login.
 
 ```
-Flutter ObjectiveView ──SCAN──▶ /field/scan
+Flutter SCAN button   ──SCAN──▶ /field/scan
    /field/scan   recognises the scan object (MindAR) → backend checks it's the team's next CP
        ├─ wrong CP → field app shows "THIS IS NOT YOUR SIGNAL" (red flash), stays in scanner
        └─ right CP → /field/activity?cp=CPx  (AR activity)
    /field/activity  team solves it → backend records the solve
-       └─ redirects to Flutter "/"  → MissionScreen sees the new state → RewardSequenceView
+       └─ redirects to Flutter "/"  → the shell sees the new state → RewardSequenceView
 ```
 
 - Flutter **never** loads Three.js or MindAR, and never embeds them in an iframe
@@ -360,10 +416,12 @@ lib/
     services/   auth_service.dart, team_service.dart, admin_service.dart, location_service.dart
     providers/  team_provider.dart, game_clock_provider.dart, admin_providers.dart
   player/
-    shell/      player_shell.dart, player_top_bar.dart
-    mission/    mission_screen.dart, views/*.dart (one per view in §3.4)
-    journal/    journal_screen.dart
-    team/       team_screen.dart
+    shell/      player_shell.dart, player_nav_bar.dart, player_top_bar.dart, field_app.dart
+    home/       home_screen.dart, home_content.dart (the briefing text)
+    fragments/  fragments_screen.dart
+    archive/    archive_screen.dart
+    profile/    profile_screen.dart
+    mission/    views/gate_code_view.dart, views/reward_sequence_view.dart (§3.4a)
     login/      login_screen.dart
     preflight/  preflight_screen.dart
   admin/

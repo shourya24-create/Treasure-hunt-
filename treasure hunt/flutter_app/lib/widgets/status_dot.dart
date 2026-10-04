@@ -144,7 +144,8 @@ class FailureCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(message.toUpperCase(), style: EchoText.mono(size: 13)),
+              // A message the team has to read outdoors, so body-sized (UI.md §8).
+              Text(message.toUpperCase(), style: EchoText.mono(size: 16)),
               if (onRetry != null) ...[
                 const SizedBox(height: 12),
                 OutlinedButton(

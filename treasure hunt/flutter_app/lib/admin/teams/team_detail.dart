@@ -49,7 +49,8 @@ class TeamDetail extends StatelessWidget {
       if (t.viewingStartedAt != null) (t.viewingStartedAt!, 'HEADSET ON'),
       if (t.decidedAt != null) (t.decidedAt!, 'DECISION · ${t.decision}'),
       for (final c in data.commands)
-        if (c.teamId == t.id && !_inRecord.contains(c.type))
+        // A command the server refused never happened to this team.
+        if (c.teamId == t.id && c.processed && !_inRecord.contains(c.type))
           (c.at, 'ADMIN · ${c.type.toUpperCase()}${c.checkpointId == null ? '' : ' · ${c.checkpointId}'}'),
     ];
     events.sort((a, b) => a.$1.compareTo(b.$1));
@@ -106,6 +107,9 @@ class TeamDetail extends StatelessWidget {
         context,
         'forceComplete',
         teamId: team.id,
+        // The checkpoint the dialog named. Left out, the server completes
+        // whatever is next when the call lands, so a retry would complete two.
+        checkpointId: cp,
         done: 'Force-completed · ${team.id} · $cp',
       );
     }
@@ -144,6 +148,7 @@ class TeamDetail extends StatelessWidget {
     required String title,
     required String consequence,
     required String done,
+    String? checkpointId,
     bool destructive = false,
   }) async {
     final ok = await ConfirmDialog.show(
@@ -154,7 +159,13 @@ class TeamDetail extends StatelessWidget {
       destructive: destructive,
     );
     if (ok && context.mounted) {
-      await runAdminAction(context, type, teamId: team.id, done: done);
+      await runAdminAction(
+        context,
+        type,
+        teamId: team.id,
+        checkpointId: checkpointId,
+        done: done,
+      );
     }
   }
 
@@ -240,6 +251,9 @@ class TeamDetail extends StatelessWidget {
               title: 'Move $next to end',
               consequence: '${t.id} skips $next for now and visits it last. Use '
                   'this when the checkpoint is broken or blocked.',
+              // Named for the same reason as a force-complete: a retry must
+              // not move a second checkpoint.
+              checkpointId: next,
               done: 'Rerouted · ${t.id} · $next moved to end',
             ),
           ),

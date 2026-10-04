@@ -1,6 +1,7 @@
-/// player/team/team_screen.dart — The Team tab: who we are, this phone, and help.
+/// player/profile/profile_screen.dart — The Profile tab: who we are, this phone, and help.
 ///
-/// No points and no leaderboard here (UI.md §3.7).
+/// A team plays on one shared login, so the profile is the team's. No points
+/// and no leaderboard here (UI.md §3.7).
 library;
 
 import 'package:flutter/material.dart';
@@ -20,8 +21,8 @@ import '../../widgets/echo_scaffold.dart';
 import '../../widgets/section_label.dart';
 import '../../widgets/status_dot.dart';
 
-class TeamScreen extends StatelessWidget {
-  const TeamScreen({super.key});
+class ProfileScreen extends StatelessWidget {
+  const ProfileScreen({super.key});
 
   Future<void> _requestHelp(BuildContext context) async {
     final ok = await ConfirmDialog.show(
@@ -52,17 +53,19 @@ class TeamScreen extends StatelessWidget {
 
     return EchoPage(
       children: [
-        const SectionLabel('Team'),
+        const SectionLabel('Profile'),
         const SizedBox(height: 12),
         Text(view.name.toUpperCase(), style: EchoText.headline(size: 34)),
-        const SizedBox(height: 4),
-        Text(view.id, style: EchoText.mono(color: EchoColors.textSecondary)),
         const SizedBox(height: 24),
         EchoCard(
           child: Column(
             children: [
+              _Line(label: 'Team ID', value: view.id),
+              const SizedBox(height: 12),
+              _Line(label: 'Team name', value: view.name),
+              const SizedBox(height: 12),
               _Line(
-                label: 'Checkpoints done',
+                label: 'Fragments recovered',
                 value: '${view.completions} / ${TeamView.totalCheckpoints}',
               ),
               const SizedBox(height: 12),
@@ -131,8 +134,16 @@ class _Line extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
         children: [
-          Expanded(child: SectionLabel(label)),
-          Text(value, style: EchoText.mono(size: 16)),
+          SectionLabel(label),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              overflow: TextOverflow.ellipsis,
+              style: EchoText.mono(size: 16),
+            ),
+          ),
         ],
       );
 }

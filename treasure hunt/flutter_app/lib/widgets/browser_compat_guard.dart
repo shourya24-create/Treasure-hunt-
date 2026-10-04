@@ -14,6 +14,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../theme.dart';
+import 'echo_scaffold.dart';
+import 'status_dot.dart';
 
 // UA detection runs on web only; import conditionally.
 // ignore: avoid_web_libraries_in_flutter
@@ -82,8 +84,10 @@ class _BrowserCompatGuardState extends State<BrowserCompatGuard> {
         _CompatResult.iosTooOld => const _IncompatibleScreen(
             icon: Icons.system_update,
             title: 'iOS UPDATE REQUIRED',
+            // No arrows: Noto Serif has no glyph for them, and a missing glyph
+            // makes the engine fetch a fallback font at runtime.
             body: 'The AR scanner requires iOS 15 or later.\n\n'
-                'Please update your device in Settings → General → Software Update.',
+                'Please update your device in Settings > General > Software Update.',
           ),
       };
 }
@@ -101,28 +105,34 @@ class _IncompatibleScreen extends StatelessWidget {
   final String body;
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // The browser cannot run the scanner: a failure, so red.
-                Icon(icon, color: EchoColors.dangerRedBright, size: 56),
-                const SizedBox(height: 24),
-                Text(
-                  title,
-                  style: EchoText.headline(size: 24),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  body,
-                  style: EchoText.body(size: 15),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+  Widget build(BuildContext context) => EchoScaffold(
+        body: SafeArea(
+          child: Center(
+            // Scrolls rather than overflows on a short screen.
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // The browser cannot run the scanner: a failure, so red —
+                  // one flash as the screen appears, then static.
+                  FailureFlash(
+                    builder: (context, color) => Icon(icon, color: color, size: 56),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    title,
+                    style: EchoText.headline(size: 24),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    body,
+                    style: EchoText.body(),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           ),
         ),

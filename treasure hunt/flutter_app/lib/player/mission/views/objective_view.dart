@@ -92,7 +92,7 @@ class ObjectiveView extends StatelessWidget {
                         hint.imageUrl,
                         height: 220,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
                       ),
                     ),
                     const SizedBox(height: 12),

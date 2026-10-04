@@ -70,7 +70,9 @@ class AdminShell extends StatelessWidget {
                 )
               : !data.loaded
                   ? const DecryptingText()
-                  : child,
+                  // Its own semantics container: otherwise the page navigator
+                  // inside blocks the header and rail from screen readers.
+                  : Semantics(container: true, explicitChildNodes: true, child: child),
         ),
       ],
     );

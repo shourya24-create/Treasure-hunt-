@@ -2,7 +2,8 @@
 ///
 /// Teams and their phones, each team's route (generated from GAMEPLAY.md §5,
 /// read-only here), and content status: everything in GAMEPLAY.md §8 that is
-/// still a TODO_ placeholder shows red, delivered items dim green.
+/// still a TODO_ placeholder shows red, delivered items dim green. Also the
+/// reset that clears a rehearsal, so its clock is not still running on event day.
 library;
 
 import 'package:flutter/material.dart';
@@ -58,6 +59,20 @@ class _SetupScreenState extends State<SetupScreen> {
     );
     if (ok && mounted) {
       await runAdminAction(context, 'reopenGame', done: 'Campus game reopened');
+    }
+  }
+
+  Future<void> _resetEvent() async {
+    final ok = await TypedConfirmDialog.show(
+      context,
+      title: 'Reset event',
+      consequence: 'Wipes every team\'s progress, logs every phone out and '
+          'clears the clock. Use it after a rehearsal, never during the event.',
+      word: 'RESET',
+      destructive: true,
+    );
+    if (ok && mounted) {
+      await runAdminAction(context, 'resetEvent', done: 'Event reset');
     }
   }
 
@@ -158,6 +173,22 @@ class _SetupScreenState extends State<SetupScreen> {
           const SizedBox(height: 16),
           EchoButton.ghost(label: 'Reopen game', onPressed: _reopen),
         ],
+
+        // ── Rehearsal ────────────────────────────────────────────────────────
+        const SizedBox(height: 32),
+        const SectionLabel('Rehearsal'),
+        const SizedBox(height: 16),
+        // Left-aligned: a page-wide red bar would read as a failure.
+        Align(
+          alignment: Alignment.centerLeft,
+          child: EchoButton.destructive(label: 'Reset event', onPressed: _resetEvent),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'START GAME in a rehearsal starts the 2-hour clock. Reset the event '
+          'afterwards, or the clock will already have run out on event day.',
+          style: EchoText.body(color: EchoColors.textSecondary),
+        ),
       ],
     );
   }

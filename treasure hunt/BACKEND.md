@@ -29,6 +29,9 @@ phone (Flutter app /  field AR app)         admin dashboard (Flutter /admin/…)
 - **`/teamViews` is rebuilt from `/teams` on every write.** It never contains the
   route, the next checkpoint's ID, an answer, the points, or whether the
   decision was correct.
+  Its `archive` list is what the Archive tab shows: one entry per cleared
+  fragment (clear time, chapter, station reaction, the clue and object hint
+  that led there), numbered by order of completion and never by checkpoint.
 
 ## 2. Content (all placeholders until the story/AR team delivers)
 
@@ -65,12 +68,20 @@ Every call needs a signed-in Firebase user (anonymous is fine). After
 | `enterGateCode` | `{ teamId, code }` | `{ accepted: boolean }` |
 | `recordArrival` | `{ teamId, checkpointId }` | `{ match: boolean }` (false = "This is not your signal.") |
 | `submitAnswer` | `{ teamId, checkpointId, answer }` | `{ correct: boolean }` |
-| `ackReward` | `{ teamId }` | `{ ok: true }` |
+| `ackReward` | `{ teamId, chapter }` | `{ ok: true }` — `chapter` is the chapter number just played |
 | `requestHelp` | `{ teamId }` | `{ ok: true }` |
-| `reportLocation` | `{ teamId, lat?, lng?, accuracy? }` | `{ ok: true }` — heartbeat; coordinates optional |
+| `reportLocation` | `{ teamId, lat?, lng?, accuracy? }` | `{ ok: true, serverTime }` — heartbeat; coordinates optional |
 
 All calls are idempotent: repeating one that already succeeded changes nothing
 and returns the same result.
+
+**Guessing is slowed down, not penalised.** After 5 wrong team passwords in a
+row, `claimTeam` refuses that team for 30 seconds; the same applies to gate
+codes in `enterGateCode`. The two counters are separate, and neither costs
+points. A phone that already holds one team cannot claim a second.
+
+`serverTime` (milliseconds) is the server's clock. Use it to correct the
+countdown if the device clock is wrong; `facilitatorAction` returns it too.
 
 ### The reward
 
@@ -109,7 +120,7 @@ actions marked **desk** are allowed.
 | `type` | Needs | Effect |
 |---|---|---|
 | `startGame` | — | starts the 2-hour clock, unlocks CP1 |
-| `endGame` / `reopenGame` | — | closes the campus game / undoes a mistaken end |
+| `endGame` / `reopenGame` | — | closes the campus game / undoes a mistaken end. Reopen also sends teams that were marked arrived during the end, and still have checkpoints left, back on campus |
 | `pauseAll` / `resumeAll` | — | |
 | `pauseTeam` / `resumeTeam` | `teamId` | |
 | `recordHint` | `teamId`, `checkpointId` (CP1–CP8) | −20 |
@@ -119,13 +130,15 @@ actions marked **desk** are allowed.
 | `moveToEnd` | `teamId`, optional `checkpointId` | move a checkpoint (default: next) to the end of the route |
 | `arrivedFinal` **desk** | `teamId` | joins the headset queue; needs all 7 done, or the campus closed |
 | `startViewing` **desk** | `teamId` | the team's member puts the headset on; one team at a time |
+| `cancelViewing` **desk** | `teamId` | undoes a mistaken "start viewing" and frees the headset |
 | `recordDecision` **desk** | `teamId`, `decision` (`DESTROY`/`KEEP`) | once only; sets the finish time |
 | `resolveHelp` | `teamId` | clears an "I NEED HELP" alert |
 | `releaseDevice` | `teamId` | frees the team so a replacement phone can log in |
 | `listGateCodes` **desk** | — | returns the 12 gate codes for the CP1 desk (not logged) |
 | `contentStatus` | — | counts of delivered vs placeholder content (not logged) |
 | `seedTeams` | — | creates missing teams; never overwrites |
-| `resetTeam` | `teamId` | rehearsals: wipes progress, keeps the phone (no button in the app) |
+| `resetTeam` | `teamId` | rehearsals: wipes one team's progress, keeps the phone (no button in the app) |
+| `resetEvent` | — | after a rehearsal: clears the clock, wipes every team and releases every phone |
 
 Points are always recomputed from the record:
 `100 × (CP1 + campus checkpoints) − 20 × hints + 100 if the decision is correct`.
@@ -152,6 +165,50 @@ First run on a new project (or the emulator):
 Flutter app: `flutter pub get`, then `flutter build web`. Fonts, the noise
 texture and the preflight test tone are bundled under `flutter_app/assets/`.
 
+### Rehearsing on the local emulators
+
+Nothing here touches the live project.
+
+```
+# terminal 1 — backend (needs Java 21+ and the Firebase CLI)
+cd "treasure hunt"
+firebase emulators:start --only auth,firestore,functions,hosting
+
+# terminal 2 — app, built to talk to the emulators
+cd "treasure hunt/flutter_app"
+flutter build web --dart-define=USE_EMULATORS=true
+```
+
+Then open http://127.0.0.1:5000 (the hosting emulator serves the build).
+
+1. In the emulator UI (http://127.0.0.1:4000) add an email/password user under
+   Authentication and copy its UID.
+2. Seed against the emulator:
+   ```
+   cd "treasure hunt/functions"
+   set FIRESTORE_EMULATOR_HOST=127.0.0.1:8080
+   set GCLOUD_PROJECT=treasure-hunt-38935
+   node lib/scripts/seed.js --facilitator <uid> "Name"
+   ```
+3. Log in as that facilitator, press START GAME, then log in as a team in a
+   second browser profile (team ID `T1`, password `TODO_LOGIN_T1` until the
+   placeholders are replaced).
+4. There is no field AR app yet, so use **Force-complete** on the TEAMS tab to
+   move a team through its checkpoints.
+
+Two things behave differently on the emulators only:
+
+- **A page reload signs a team phone out.** The Auth web library checks the
+  saved session against the live server before the emulator setting applies.
+  Use **Release phone** on the TEAMS tab, then log the team in again. Check
+  once on the live project that a reload keeps the team logged in.
+- **A red "Running in emulator mode" banner** is pinned to the bottom of the
+  page and overlaps the labels of the bottom navigation. Tap the tab icons,
+  which sit above it.
+
+Without `--dart-define=USE_EMULATORS=true` the app always talks to the live
+project.
+
 ## 7. Additions beyond GAMEPLAY.md
 
 These are operational needs, not gameplay. Remove any the club does not want.
@@ -163,7 +220,13 @@ These are operational needs, not gameplay. Remove any the club does not want.
 - **Automatic close at 2:00 after START** — so the server and the phone's
   "TIME'S UP" screen agree even if nobody presses END GAME.
 - **Undo last hint**, **Reopen game** — corrections for a mis-tap.
-- **Reset team**, **Seed teams** — rehearsal and setup.
+- **Reset team**, **Reset event**, **Seed teams** — rehearsal and setup. Without
+  Reset event, the 2-hour clock from a rehearsal would still be running (or
+  expired) on event day.
+- **Cancel viewing** — a mistaken "start viewing" would otherwise block the
+  headset until that team decided.
+- **Attempt limit on passwords and gate codes** — stops a script from trying
+  every code. It is a 30-second wait, not a points penalty.
 
 ## 8. Not built yet (from UI.md)
 

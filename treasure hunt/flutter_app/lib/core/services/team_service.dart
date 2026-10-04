@@ -38,6 +38,15 @@ String readableError(Object error) {
   return (match?.group(1) ?? text).trim();
 }
 
+/// The server's clock from a callable's result (`serverTime`, in
+/// milliseconds), or null if the result carries none.
+DateTime? serverTimeOf(Map<String, dynamic> result) {
+  final millis = result['serverTime'];
+  return millis is num
+      ? DateTime.fromMillisecondsSinceEpoch(millis.toInt())
+      : null;
+}
+
 /// The latest team view, plus whether it came from the server just now.
 typedef ViewSnapshot = ({TeamView? view, bool online});
 
@@ -74,32 +83,38 @@ class TeamService {
     return result['accepted'] as bool? ?? false;
   }
 
-  /// The reward for the latest completion has been played on this phone.
-  Future<void> ackReward(String teamId) =>
-      callFunction(_fn, 'ackReward', {'teamId': teamId});
+  /// The reward ending in chapter `chapter` has been played on this phone.
+  /// Naming the chapter keeps a completion that lands at the same moment
+  /// (an admin force-complete, say) from being marked as played unseen.
+  Future<void> ackReward(String teamId, int chapter) =>
+      callFunction(_fn, 'ackReward', {'teamId': teamId, 'chapter': chapter});
 
   /// "I NEED HELP": raises an alert on the admin dashboard.
   Future<void> requestHelp(String teamId) =>
       callFunction(_fn, 'requestHelp', {'teamId': teamId});
 
-  /// Heartbeat, with the GPS fix when location is available.
-  Future<void> reportLocation({
+  /// Heartbeat, with the GPS fix when location is available. Returns the
+  /// server's clock, which the countdown follows instead of the phone's own.
+  Future<DateTime?> reportLocation({
     required String teamId,
     double? lat,
     double? lng,
     double? accuracy,
-  }) =>
-      callFunction(_fn, 'reportLocation', {
-        'teamId': teamId,
-        if (lat != null) 'lat': lat,
-        if (lng != null) 'lng': lng,
-        if (accuracy != null) 'accuracy': accuracy,
-      });
+  }) async {
+    final result = await callFunction(_fn, 'reportLocation', {
+      'teamId': teamId,
+      if (lat != null) 'lat': lat,
+      if (lng != null) 'lng': lng,
+      if (accuracy != null) 'accuracy': accuracy,
+    });
+    return serverTimeOf(result);
+  }
 
   // ── Firestore streams ─────────────────────────────────────────────────────────
 
   /// The view of whichever team this phone has claimed, or null if none.
-  /// `online` turns false when Firestore falls back to its cache.
+  /// `online` turns false when Firestore falls back to its cache. A null view
+  /// from the cache is no answer: it only means nothing is stored on the phone.
   Stream<ViewSnapshot> watchMyView(String uid) => _db
       .collection('teamViews')
       .where('deviceUid', isEqualTo: uid)

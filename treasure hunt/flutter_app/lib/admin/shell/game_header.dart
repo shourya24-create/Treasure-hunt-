@@ -4,6 +4,7 @@
 ///                                        ⚠ 3   [START] [END]
 ///
 /// START GAME and END GAME affect every team, so both need a typed confirmation.
+/// PAUSE ALL sits next to END GAME and locks every phone, so it asks first too.
 library;
 
 import 'package:flutter/material.dart';
@@ -46,6 +47,19 @@ class GameHeader extends StatelessWidget {
     );
     if (ok && context.mounted) {
       await runAdminAction(context, 'endGame', done: 'Campus game ended');
+    }
+  }
+
+  Future<void> _pauseAll(BuildContext context) async {
+    final ok = await ConfirmDialog.show(
+      context,
+      title: 'Pause all',
+      consequence: 'Locks every team\'s app until you press RESUME ALL: no gate '
+          'codes, scans or solves. The 2-hour clock keeps running.',
+      confirmLabel: 'Pause all',
+    );
+    if (ok && context.mounted) {
+      await runAdminAction(context, 'pauseAll', done: 'Everyone paused');
     }
   }
 
@@ -95,11 +109,10 @@ class GameHeader extends StatelessWidget {
             if (game.started && !closed) ...[
               EchoButton.ghost(
                 label: game.paused ? 'Resume all' : 'Pause all',
-                onPressed: () => runAdminAction(
-                  context,
-                  game.paused ? 'resumeAll' : 'pauseAll',
-                  done: game.paused ? 'Everyone resumed' : 'Everyone paused',
-                ),
+                // Resuming only gives the teams their game back: one tap.
+                onPressed: game.paused
+                    ? () => runAdminAction(context, 'resumeAll', done: 'Everyone resumed')
+                    : () => _pauseAll(context),
               ),
               EchoButton.destructive(label: 'End game', onPressed: () => _end(context)),
             ],

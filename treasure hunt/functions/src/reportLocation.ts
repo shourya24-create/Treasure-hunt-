@@ -40,7 +40,7 @@ export const reportLocation = onCall(async (request) => {
   const now = Timestamp.now();
   if (data.lat == null && data.lng == null) {
     await ref.update({ lastSeenAt: now });
-    return { ok: true };
+    return { ok: true, serverTime: now.toMillis() };
   }
 
   if (!inRange(data.lat, -90, 90) || !inRange(data.lng, -180, 180)) {
@@ -54,5 +54,6 @@ export const reportLocation = onCall(async (request) => {
   };
   await ref.update({ location, lastSeenAt: now });
 
-  return { ok: true };
+  // The phone corrects its countdown with this, in case its own clock is off.
+  return { ok: true, serverTime: now.toMillis() };
 });

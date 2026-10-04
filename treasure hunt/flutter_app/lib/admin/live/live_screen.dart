@@ -129,9 +129,11 @@ class _CheckpointTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final count = here.length;
     if (count >= crowdLimit) {
-      // Over the limit right now: red border, one flash.
+      // Over the limit right now: border and count flash once together, then
+      // settle. The bright red is for the instant of failure, not for as long
+      // as the crowd lasts.
       return FailureFlash(
-        builder: (context, color) => _tile(context, color, EchoColors.dangerRedBright),
+        builder: (context, color) => _tile(context, color, color),
       );
     }
     if (count == crowdWarning) {

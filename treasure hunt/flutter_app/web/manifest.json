@@ -1,11 +1,11 @@
 {
-    "name": "flutter_app",
-    "short_name": "flutter_app",
+    "name": "The Echo Protocol",
+    "short_name": "The Echo Protocol",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0B0C0A",
+    "theme_color": "#0B0C0A",
+    "description": "Team and control app for The Echo Protocol, the AR/VR club's campus mystery hunt.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

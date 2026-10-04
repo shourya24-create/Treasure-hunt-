@@ -48,7 +48,7 @@ class _GateCodeViewState extends State<GateCodeView> {
     try {
       final accepted = await context.read<TeamProvider>().enterGateCode(code);
       if (!mounted) return;
-      // On success the view stream moves the Mission tab on by itself.
+      // On success the view stream moves the app on by itself.
       if (!accepted) _fail('Invalid code');
     } catch (e) {
       if (mounted) _fail(readableError(e));

@@ -265,6 +265,7 @@ ThemeData buildEchoTheme() {
       backgroundColor: EchoColors.bgSurface,
       surfaceTintColor: Colors.transparent,
       indicatorColor: Colors.transparent,
+      overlayColor: const WidgetStatePropertyAll(Colors.transparent),
       height: 68,
       iconTheme: WidgetStateProperty.resolveWith(
         (states) => IconThemeData(color: navColor(states), size: 24),
@@ -311,13 +312,23 @@ ThemeData buildEchoTheme() {
     ),
     snackBarTheme: SnackBarThemeData(
       backgroundColor: EchoColors.bgSurfaceRaised,
-      contentTextStyle: EchoText.mono(size: 13),
+      // Notices also carry errors a team has to read outdoors: body-sized.
+      contentTextStyle: EchoText.mono(size: 16),
       actionTextColor: EchoColors.textHeadline,
       behavior: SnackBarBehavior.floating,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.all(Radius.circular(2)),
         side: BorderSide(color: EchoColors.hairline),
       ),
+    ),
+    // The Material default is a white bubble, which is not in the palette.
+    tooltipTheme: TooltipThemeData(
+      decoration: BoxDecoration(
+        color: EchoColors.bgSurfaceRaised,
+        border: Border.all(color: EchoColors.hairline),
+        borderRadius: const BorderRadius.all(Radius.circular(2)),
+      ),
+      textStyle: EchoText.mono(size: 12),
     ),
     dividerTheme: const DividerThemeData(color: EchoColors.hairline, space: 1),
     dividerColor: EchoColors.hairline,

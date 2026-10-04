@@ -16,8 +16,10 @@ import '../models/team.dart';
 import '../services/auth_service.dart';
 import '../services/location_service.dart';
 import '../services/team_service.dart';
+import 'game_clock_provider.dart';
 
-/// Which single view the Mission tab shows (UI.md §3.4).
+/// Where the team is in the game: decides the Home card, the open fragment
+/// and the focus views (UI.md §3.4).
 enum MissionStage {
   loading,
   waitingRoom,
@@ -35,10 +37,13 @@ class TeamProvider extends ChangeNotifier {
     required TeamService teamService,
     required AuthService authService,
     required LocationService locationService,
+    required GameClockProvider clock,
   })  : _service = teamService,
         _auth = authService,
-        _location = locationService {
+        _location = locationService,
+        _gameClock = clock {
     _authSub = _auth.authStateChanges.listen(_bind);
+    _gameClock.addListener(_onTick);
     _loadPreflight();
   }
 
@@ -47,9 +52,13 @@ class TeamProvider extends ChangeNotifier {
   final TeamService _service;
   final AuthService _auth;
   final LocationService _location;
+  final GameClockProvider _gameClock;
 
   TeamView? _view;
   GameState _game = GameState.initial;
+
+  /// Whether the game was closed at the clock's last tick.
+  bool _closed = false;
   bool _resolved = false;
   bool _online = true;
   bool _preflightDone = false;
@@ -71,11 +80,14 @@ class TeamProvider extends ChangeNotifier {
   /// False until the stored preflight flag has been read.
   bool get preflightKnown => _preflightKnown;
 
-  /// An admin has paused this team or everyone. Only matters on campus.
+  /// An admin has paused this team or everyone. Only matters on campus, and
+  /// only while the game is open: a pause does not stop the 2-hour clock, and
+  /// once the game has closed nothing may cover TIME'S UP.
   bool get paused {
     final status = _view?.status;
     return (status == TeamStatus.waiting || status == TeamStatus.playing) &&
-        (_game.paused || (_view?.paused ?? false));
+        (_game.paused || (_view?.paused ?? false)) &&
+        !_game.closed(_gameClock.now);
   }
 
   /// The one Mission view to show at `now`. A reload lands on the same one.
@@ -113,10 +125,15 @@ class TeamProvider extends ChangeNotifier {
 
     _viewSub = _service.watchMyView(user.uid).listen(
       (snapshot) {
-        _view = snapshot.view;
         _online = snapshot.online;
-        _resolved = true;
-        _syncHeartbeat();
+        // An empty answer from the cache only means the phone is offline with
+        // nothing stored, as after a reload without signal. Whether it still
+        // has a team is for the server to say, so the view stays as it was.
+        if (snapshot.view != null || snapshot.online) {
+          _view = snapshot.view;
+          _resolved = true;
+          _syncHeartbeat();
+        }
         notifyListeners();
       },
       onError: (Object _) {
@@ -143,6 +160,15 @@ class TeamProvider extends ChangeNotifier {
     }
   }
 
+  /// `paused` turns false when the game closes. The 2 hours running out is
+  /// not a Firestore event, so the clock is what has to announce it.
+  void _onTick() {
+    final closed = _game.closed(_gameClock.now);
+    if (closed == _closed) return;
+    _closed = closed;
+    notifyListeners();
+  }
+
   Future<void> _loadPreflight() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -166,8 +192,10 @@ class TeamProvider extends ChangeNotifier {
   Future<bool> enterGateCode(String code) =>
       _service.enterGateCode(teamId: _requireTeam(), code: code);
 
-  /// Called once the reward sequence has been played to the end.
-  Future<void> ackReward() => _service.ackReward(_requireTeam());
+  /// Called once the reward sequence has been played to the end, with the
+  /// number of the chapter it ended on.
+  Future<void> ackReward(int chapter) =>
+      _service.ackReward(_requireTeam(), chapter);
 
   Future<void> requestHelp() => _service.requestHelp(_requireTeam());
 
@@ -188,6 +216,7 @@ class TeamProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _gameClock.removeListener(_onTick);
     _authSub?.cancel();
     _viewSub?.cancel();
     _gameSub?.cancel();
