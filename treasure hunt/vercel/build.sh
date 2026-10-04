@@ -2,6 +2,7 @@
 # build.sh — Assembles the Vercel deployment in this folder.
 #
 #   public/   the Flutter web build, calling this site's own /api/<name>
+#   public/field/  the scanner pages (../field), served at /field/scan
 #   backend/  the compiled game functions (functions/lib)
 #
 # Run from Git Bash, then deploy this folder with `vercel deploy --prod`.
@@ -19,6 +20,8 @@ flutter="${FLUTTER:-flutter}"
 
 mkdir -p "$here/public" "$here/backend"
 cp -r "$root/flutter_app/build/web/." "$here/public/"
+mkdir -p "$here/public/field"
+cp -r "$root/field/." "$here/public/field/"
 cp -r "$root/functions/lib/." "$here/backend/"
 
 echo "Ready: deploy $here"

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0B0C0A" />
+    <title>Scanner · The Echo Protocol</title>
+    <link rel="icon" href="/favicon.png" />
+    <link rel="stylesheet" href="/field/field.css" />
+    <!-- MindAR 1.2.5 is built against three r160 and earlier. -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+          "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <!-- The scanner: camera, frame, and one line telling the team what it sees. -->
+    <div id="scanner" hidden>
+      <div id="camera"></div>
+      <div class="reticle"></div>
+      <div class="bar top">
+        <div class="status">
+          <span class="dot"></span>
+          <span class="label" id="state">Scanning</span>
+        </div>
+        <button class="button exit" id="exit" type="button">Exit</button>
+      </div>
+      <div class="bar bottom">
+        <p class="headline" id="title" style="font-size: 24px">Find the scan target</p>
+        <p id="message">Point the camera at the object from your fragment.</p>
+      </div>
+    </div>
+
+    <!-- Shown instead of the scanner when it cannot run. -->
+    <div class="page" id="note" hidden>
+      <span class="label" id="note-label">Scanner</span>
+      <h1 class="headline" id="note-title"></h1>
+      <p id="note-text"></p>
+      <button class="button" id="note-back" type="button">Back to the app</button>
+    </div>
+
+    <script type="module" src="/field/scan.js"></script>
+  </body>
+</html>

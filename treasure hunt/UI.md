@@ -379,6 +379,12 @@ Flutter SCAN button   ──SCAN──▶ /field/scan
        └─ redirects to Flutter "/"  → the shell sees the new state → RewardSequenceView
 ```
 
+- The scanner lives in `field/` (plain HTML + JS, MindAR from a CDN) and is
+  copied to `/field/` by `vercel/build.sh`. `field/targets/targets.mind` holds
+  the 7 image targets; `TARGET_CHECKPOINTS` in `field/config.js` maps target
+  0–6 to CP2–CP8. The targets in the repo are **placeholder test sheets**
+  (`field/targets/cp2.png` … `cp8.png`), to be replaced by the real scan objects.
+- `/field/activity` is a **placeholder** until the activities are designed.
 - Flutter **never** loads Three.js or MindAR, and never embeds them in an iframe
   (the camera in an iframe is unreliable on iPhone).
 - The field app **never** plays chapters or shows clues. That is Flutter's job.
