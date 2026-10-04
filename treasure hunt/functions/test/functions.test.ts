@@ -20,7 +20,7 @@ if (!getApps().length) {
   process.env.FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
   process.env.FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
   process.env.FUNCTIONS_EMULATOR_HOST = "127.0.0.1:5001";
-  initializeApp({ projectId: "treasure-hunt-38935" });
+  initializeApp({ projectId: "echo-protocol-da7f7" });
 }
 
 const db = getFirestore();
@@ -31,7 +31,7 @@ async function callFunction<T = Record<string, unknown>>(
   data: unknown,
   uid?: string
 ): Promise<T> {
-  const url = `http://127.0.0.1:5001/treasure-hunt-38935/us-central1/${name}`;
+  const url = `http://127.0.0.1:5001/echo-protocol-da7f7/us-central1/${name}`;
 
   // Build a minimal Firebase callable request body.
   const body = { data };

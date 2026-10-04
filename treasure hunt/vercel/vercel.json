@@ -1,0 +1,17 @@
+{
+  "framework": null,
+  "buildCommand": "",
+  "outputDirectory": "public",
+  "rewrites": [{ "source": "/api/(.*)", "destination": "/api" }],
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 30,
+      "includeFiles": "backend/**"
+    }
+  },
+  "build": {
+    "env": {
+      "NODEJS_HELPERS": "0"
+    }
+  }
+}

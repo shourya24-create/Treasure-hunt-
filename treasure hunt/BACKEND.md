@@ -239,3 +239,27 @@ These are operational needs, not gameplay. Remove any the club does not want.
 - **EXPORT CSV** copies the CSV to the clipboard rather than downloading a file.
 - **Device ID via `shared_preferences`** — the one-phone rule uses the Firebase
   anonymous Auth UID instead, which needs no extra storage.
+
+## Hosting without the Blaze plan (Vercel)
+
+Cloud Functions need the Blaze plan. The live test deployment avoids it: the
+same eight callables run as one Vercel function, and Firestore and Auth stay
+on the free Spark plan (project `echo-protocol-da7f7`).
+
+- `vercel/api/index.js` serves every export of `functions/lib` at `/api/<name>`.
+  They are unchanged `onCall` handlers, so tokens and errors work as before.
+- The Admin SDK reads the service account from the `FIREBASE_SERVICE_ACCOUNT`
+  environment variable (set in the Vercel project, never committed).
+- The Flutter app is built with `--dart-define=API_BASE=/api`, which makes
+  `callFunction` call this site instead of Cloud Functions.
+
+Deploy from Git Bash:
+
+```
+cd "treasure hunt/vercel"
+FLUTTER=/path/to/flutter.bat bash build.sh
+npx vercel deploy --prod
+```
+
+The field AR app must call `/api/recordArrival` and `/api/submitAnswer` on the
+same site, with the same callable protocol.

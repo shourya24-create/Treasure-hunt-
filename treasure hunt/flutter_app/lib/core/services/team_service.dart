@@ -16,13 +16,22 @@ import 'package:cloud_functions/cloud_functions.dart';
 import '../models/game.dart';
 import '../models/team.dart';
 
+/// Where the callables live when they are not on Cloud Functions: build with
+/// `--dart-define=API_BASE=/api` for the Vercel deployment, where the same
+/// functions are served from this site's own `/api/<name>`. Empty means
+/// Cloud Functions (or the emulator).
+const _apiBase = String.fromEnvironment('API_BASE');
+
 /// Calls a Cloud Function with a 10-second timeout and returns its result map.
 Future<Map<String, dynamic>> callFunction(
   FirebaseFunctions functions,
   String name,
   Map<String, dynamic> data,
 ) async {
-  final result = await functions.httpsCallable(name).call<dynamic>(data).timeout(
+  final callable = _apiBase.isEmpty
+      ? functions.httpsCallable(name)
+      : functions.httpsCallableFromUrl(Uri.base.resolve('$_apiBase/$name').toString());
+  final result = await callable.call<dynamic>(data).timeout(
         const Duration(seconds: 10),
         onTimeout: () => throw TimeoutException(
           '$name call timed out after 10 seconds.',

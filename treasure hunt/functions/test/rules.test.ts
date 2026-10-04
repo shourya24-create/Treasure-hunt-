@@ -37,7 +37,7 @@ describe("Firestore rules", () => {
 
   before(async () => {
     testEnv = await initializeTestEnvironment({
-      projectId: "treasure-hunt-38935",
+      projectId: "echo-protocol-da7f7",
 
       firestore: {
         rules: fs.readFileSync(RULES_PATH, "utf8"),

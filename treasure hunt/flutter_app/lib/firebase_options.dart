@@ -41,12 +41,12 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBRLlcwWtroIaujD9aYBNj0xaoYBrs24dQ',
-    appId: '1:512607074756:web:79f4ed43a97ad1b9d94c91',
-    messagingSenderId: '512607074756',
-    projectId: 'treasure-hunt-38935',
-    authDomain: 'treasure-hunt-38935.firebaseapp.com',
-    storageBucket: 'treasure-hunt-38935.firebasestorage.app',
+    apiKey: 'AIzaSyDzJSiLCLsrqFVGYtEtFeEofs-7NFJ03c0',
+    appId: '1:648716688016:web:fb69ad0ed2711995771615',
+    messagingSenderId: '648716688016',
+    projectId: 'echo-protocol-da7f7',
+    authDomain: 'echo-protocol-da7f7.firebaseapp.com',
+    storageBucket: 'echo-protocol-da7f7.firebasestorage.app',
   );
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBXrrtFF0lujaXRWblbSrBfgy4C9N22oHo',
