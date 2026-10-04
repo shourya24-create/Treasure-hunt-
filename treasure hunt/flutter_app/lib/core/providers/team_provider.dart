@@ -192,6 +192,18 @@ class TeamProvider extends ChangeNotifier {
   Future<bool> enterGateCode(String code) =>
       _service.enterGateCode(teamId: _requireTeam(), code: code);
 
+  /// Answers the fragment the scan unlocked. Returns false for a wrong
+  /// answer; there is no penalty.
+  Future<bool> submitAnswer(Object answer) {
+    final checkpoint = _view?.activeCheckpoint;
+    if (checkpoint == null) throw StateError('No fragment is unlocked.');
+    return _service.submitAnswer(
+      teamId: _requireTeam(),
+      checkpointId: checkpoint,
+      answer: answer,
+    );
+  }
+
   /// Called once the reward sequence has been played to the end, with the
   /// number of the chapter it ended on.
   Future<void> ackReward(int chapter) =>

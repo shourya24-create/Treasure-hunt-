@@ -111,7 +111,10 @@ class PlayerShell extends StatelessWidget {
                 initialLocation: index == navigationShell.currentIndex,
               ),
               scanLockedReason: _scanLockedReason(stage),
-              onScan: () => openFieldApp(context, activeCheckpoint: view?.activeCheckpoint),
+              // Already scanned: the unlocked fragment is waiting in Fragments.
+              onScan: () => view?.activeCheckpoint == null
+                  ? openScanner(context)
+                  : navigationShell.goBranch(1),
               onLocked: (reason) => showEchoNotice(
                 context,
                 reason,

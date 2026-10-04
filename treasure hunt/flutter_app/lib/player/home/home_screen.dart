@@ -124,13 +124,13 @@ class _NowCard extends StatelessWidget {
         final arrived = view.activeCheckpoint != null;
         border = EchoColors.signalGreen;
         tag = StatusTag(
-          arrived ? 'Signal locked' : 'Fragment $n open',
+          arrived ? 'Fragment $n unlocked' : 'Fragment $n open',
           status: EchoStatus.live,
         );
-        headline = title(arrived ? 'FINISH THE ACTIVITY' : 'FIND FRAGMENT $n');
+        headline = title(arrived ? 'SOLVE FRAGMENT $n' : 'FIND FRAGMENT $n');
         text = arrived
-            ? 'You are in the right place. Finish the activity there to '
-                'recover the fragment.'
+            ? 'Your scan matched. The fragment is unlocked in Fragments: '
+                'solve it to recover it.'
             : 'Your clue and the object to look for are in Fragments. When '
                 'you reach it, tap Scan.';
         extra = EchoButton.ghost(

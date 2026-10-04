@@ -164,7 +164,7 @@ checkpoint ID, so the tracker never reveals the route.
 | State | When | Card |
 |---|---|---|
 | Waiting | Before the admin starts the game | Amber border, "STANDING BY", headline "WAITING FOR START", "Wait for the admin to start the game…" |
-| Objective | A campus checkpoint is next | Green border, "FRAGMENT 4 OPEN", headline "FIND FRAGMENT 4", ghost button "OPEN FRAGMENTS". Once the scan matched: "SIGNAL LOCKED" / "FINISH THE ACTIVITY". |
+| Objective | A campus checkpoint is next | Green border, "FRAGMENT 4 OPEN", headline "FIND FRAGMENT 4", ghost button "OPEN FRAGMENTS". Once the scan matched: "FRAGMENT 4 UNLOCKED" / "SOLVE FRAGMENT 4". |
 | Return to base | All 7 campus checkpoints done | "ALL FRAGMENTS RECOVERED", headline "RETURN TO BASE" |
 | Final queue | Marked "arrived at final" | Headline "HEADSET QUEUE" + a huge mono **#N** (live). Their turn: "YOUR TURN" + bright green pulse. |
 | Complete | Decision recorded by admin | Headline "DECISION RECORDED". **Never** shows which decision was correct, the points or the rank. |
@@ -208,7 +208,7 @@ Complete and Time's up states.
   label "SCAN TARGET" + the **object hint** image and text; a big primary
   **SCAN** button. After CP1 the clue says "Go to the location from your
   paper", because the app never names the first checkpoint. Once the scan
-  matched: "SIGNAL LOCKED" and the button becomes "RESUME ACTIVITY".
+  matched the tag reads "UNLOCKED" and the card becomes the solve panel (§5).
 - **Ahead:** hairline outline, `textMuted` "FRAGMENT 6 · ENCRYPTED", lock icon,
   not tappable. After the campus game closes: "FRAGMENT 6 · NOT RECOVERED".
 - **Never shows** checkpoint names, places or the route.
@@ -365,26 +365,35 @@ becomes a `Drawer` for the desk volunteer on a phone.
 
 ---
 
-## 5. Flutter ↔ AR field app contract
+## 5. Flutter ↔ scanner contract
 
-The scanner and activities are web pages built by the AR team at `/field/` on the
-**same domain**, so they share the Firebase login.
+The scanner is a web page at `/field/scan` on the **same domain**, so it shares
+the Firebase login. It only scans: the fragment is solved back in Flutter.
 
 ```
 Flutter SCAN button   ──SCAN──▶ /field/scan
    /field/scan   recognises the scan object (MindAR) → backend checks it's the team's next CP
-       ├─ wrong CP → field app shows "THIS IS NOT YOUR SIGNAL" (red flash), stays in scanner
-       └─ right CP → /field/activity?cp=CPx  (AR activity)
-   /field/activity  team solves it → backend records the solve
-       └─ redirects to Flutter "/"  → the shell sees the new state → RewardSequenceView
+       ├─ wrong CP → scanner shows "THIS IS NOT YOUR SIGNAL" (red), keeps scanning
+       └─ right CP → arrival recorded → back to Flutter "/#/fragments"
+   Fragments tab   the open fragment is now UNLOCKED: its card becomes the solve panel
+       ├─ wrong answer → "NOT CORRECT. TRY AGAIN" (red flash), retry freely, no penalty
+       └─ right answer → backend records the solve → RewardSequenceView → next fragment opens
 ```
+
+- **The solve panel is logic only for now**: a placeholder line where the
+  puzzle will go, one answer field and SUBMIT, graded by `submitAnswer` against
+  `functions/src/content/answers.ts`. Each fragment's real puzzle replaces the
+  placeholder later and hands its result to the same call.
+- While a fragment is unlocked, the SCAN button opens the Fragments tab instead
+  of the scanner.
 
 - The scanner lives in `field/` (plain HTML + JS, MindAR from a CDN) and is
   copied to `/field/` by `vercel/build.sh`. `field/targets/targets.mind` holds
   the 7 image targets; `TARGET_CHECKPOINTS` in `field/config.js` maps target
   0–6 to CP2–CP8. The targets in the repo are **placeholder test sheets**
   (`field/targets/cp2.png` … `cp8.png`), to be replaced by the real scan objects.
-- `/field/activity` is a **placeholder** until the activities are designed.
+- `/field/activity` is the old activity address; it now redirects to the
+  Fragments tab.
 - Flutter **never** loads Three.js or MindAR, and never embeds them in an iframe
   (the camera in an iframe is unreliable on iPhone).
 - The field app **never** plays chapters or shows clues. That is Flutter's job.

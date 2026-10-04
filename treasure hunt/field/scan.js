@@ -3,7 +3,8 @@
  *
  * MindAR watches the camera for the 7 scan objects. When it sees one, the
  * game is asked whether that checkpoint is this team's next one:
- *   yes → arrival is recorded and the checkpoint's activity opens;
+ *   yes → arrival is recorded and the team goes back to the app, where
+ *         that fragment is now unlocked to solve;
  *   no  → "THIS IS NOT YOUR SIGNAL", and the scanner keeps running.
  * The page never learns the team's route: it only sends what it saw.
  */
@@ -41,8 +42,9 @@ function showNote(titleText, text) {
   document.getElementById("note").hidden = false;
 }
 
-function openActivity(checkpoint) {
-  window.location.replace(`/field/activity?cp=${checkpoint}`);
+/** Back to the app's Fragments tab, where the unlocked fragment is solved. */
+function openFragment() {
+  window.location.replace("/#/fragments");
 }
 
 document.getElementById("exit").addEventListener("click", backToApp);
@@ -60,9 +62,9 @@ async function main() {
     showNote("Not logged in", "Log in with your team in the app first, then open the scanner again.");
     return;
   }
-  // A reload in the middle of an activity goes straight back to it.
+  // Already scanned: the fragment is waiting to be solved.
   if (team.activeCheckpoint) {
-    openActivity(team.activeCheckpoint);
+    openFragment();
     return;
   }
 
@@ -89,9 +91,10 @@ async function main() {
         checkpointId: checkpoint,
       });
       if (match) {
-        show("locked", "Signal locked", "This is your signal", "Opening the activity.");
+        show("locked", "Signal locked", "This is your signal", "Fragment unlocked. Opening it.");
         mindar.stop();
-        openActivity(checkpoint);
+        // Long enough to read, short enough not to feel stuck.
+        setTimeout(openFragment, 1200);
         return;
       }
       show("failed", "Wrong signal", "This is not your signal", "Check your clue and look for the right object.");

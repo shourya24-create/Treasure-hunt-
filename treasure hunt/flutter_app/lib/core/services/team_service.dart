@@ -4,8 +4,7 @@
 /// so a network hang does not leave the UI frozen indefinitely.
 ///
 /// The app never writes to Firestore: every change goes through a callable.
-/// recordArrival and submitAnswer are not here — the field AR app at /field/
-/// calls those itself.
+/// recordArrival is not here — the scanner at /field/scan calls it itself.
 library;
 
 import 'dart:async';
@@ -90,6 +89,21 @@ class TeamService {
       {'teamId': teamId, 'code': code},
     );
     return result['accepted'] as bool? ?? false;
+  }
+
+  /// The team's answer for the fragment its scan unlocked. Returns false for
+  /// a wrong answer; the team may try again, with no penalty.
+  Future<bool> submitAnswer({
+    required String teamId,
+    required String checkpointId,
+    required Object answer,
+  }) async {
+    final result = await callFunction(
+      _fn,
+      'submitAnswer',
+      {'teamId': teamId, 'checkpointId': checkpointId, 'answer': answer},
+    );
+    return result['correct'] as bool? ?? false;
   }
 
   /// The reward ending in chapter `chapter` has been played on this phone.

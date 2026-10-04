@@ -9,24 +9,10 @@
     <link rel="stylesheet" href="/field/field.css" />
   </head>
   <body>
-    <!--
-      PLACEHOLDER. The scan lands here once it matched. What the team does at
-      a checkpoint (the AR activity and how it is solved) is not designed yet;
-      when it is, it replaces this page and reports the result with
-      callGame("submitAnswer", { teamId, checkpointId, answer }).
-    -->
+    <!-- Fragments are solved in the app now: activity.js sends the phone there. -->
     <div class="page">
       <span class="label">Signal locked</span>
-      <h1 class="headline" id="title">You are in the right place</h1>
-      <p id="text">The activity for this fragment is not built yet.</p>
-      <div class="card">
-        <span class="label">For testing</span>
-        <p style="margin: 8px 0 0">
-          Your arrival is recorded. A club member can complete this fragment
-          for you from the admin dashboard.
-        </p>
-      </div>
-      <button class="button" id="back" type="button">Back to the app</button>
+      <h1 class="headline">Opening your fragment</h1>
     </div>
 
     <script type="module" src="/field/activity.js"></script>

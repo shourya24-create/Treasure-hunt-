@@ -1,18 +1,8 @@
 /**
- * activity.js — Placeholder for a checkpoint's activity (see activity.html).
+ * activity.js — Old address of a checkpoint's activity.
  *
- * Only checks that this phone really has an activity open, so the page
- * cannot be reached by typing its address.
+ * A fragment is now solved in the app's Fragments tab, so anything that still
+ * lands here is sent there.
  */
 
-import { backToApp, loadTeam } from "./session.js";
-
-document.getElementById("back").addEventListener("click", backToApp);
-
-async function main() {
-  const team = await loadTeam().catch(() => null);
-  // No arrival on record: there is nothing to do here.
-  if (!team || !team.activeCheckpoint) backToApp();
-}
-
-main();
+window.location.replace("/#/fragments");
