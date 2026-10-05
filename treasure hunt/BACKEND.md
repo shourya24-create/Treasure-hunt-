@@ -1,7 +1,7 @@
 # The Echo Protocol — Backend Contract
 
-How the Firebase backend implements `GAMEPLAY.md`, and what the Flutter app
-(`UI.md`) and the field AR app call. If this file and `GAMEPLAY.md` disagree,
+How the backend implements `GAMEPLAY.md`, and what the Flutter app (`UI.md`)
+and the scanner page (`field/`) call. If this file and `GAMEPLAY.md` disagree,
 `GAMEPLAY.md` wins.
 
 ---
@@ -9,10 +9,10 @@ How the Firebase backend implements `GAMEPLAY.md`, and what the Flutter app
 ## 1. Shape
 
 ```
-phone (Flutter app /  field AR app)         admin dashboard (Flutter /admin/…)
+phone (Flutter app / scanner page)          admin dashboard (Flutter /admin/…)
         │ callables                                  │ facilitatorAction
         ▼                                            ▼
-   Cloud Functions ── lib/store.ts (transaction) ── lib/engine.ts (the rules, pure)
+   callables (functions/src) ── lib/store.ts (transaction) ── lib/engine.ts (the rules, pure)
         │
         ▼
    Firestore:  /teams/{T1…T12}      server truth — facilitators read, nobody writes
@@ -24,6 +24,9 @@ phone (Flutter app /  field AR app)         admin dashboard (Flutter /admin/…)
 
 - **No client ever writes to Firestore.** The rules deny every write; all changes
   go through a callable, inside one transaction.
+- **The callables are Firebase `onCall` handlers that are not deployed to Cloud
+  Functions.** The live site serves them from Vercel at `/api/<name>` (§9);
+  rehearsals and tests run them on the Functions emulator.
 - **The rules of the game live in `functions/src/lib/engine.ts`** as pure
   functions. Change game behaviour there, and add a case to `test/engine.test.ts`.
 - **`/teamViews` is rebuilt from `/teams` on every write.** It never contains the
@@ -44,13 +47,14 @@ phone (Flutter app /  field AR app)         admin dashboard (Flutter /admin/…)
 | `final.ts` | the correct final decision (`DESTROY` or `KEEP`) | — |
 
 Codes and answers stay in these files; they are never written to Firestore.
-Replace a value, run `npm run build`, redeploy the functions. The admin
+Replace a value, then rebuild and redeploy the site (§9). The admin
 **SETUP** tab shows how much is still a placeholder.
 
 ## 3. The clock
 
 - **START GAME** (admin) sets `game.startedAt`. Before it, CP1 is locked: the
-  gate code is refused and the phone shows the Waiting Room.
+  gate code is refused and the phone shows Home with its WAITING FOR START
+  card, with only Home and Profile open.
 - The campus game closes when the admin presses **END GAME** or **2 hours after
   START**, whichever comes first. From then on scans, solves and
   force-completes are refused. Teams keep their points and still do the final.
@@ -91,30 +95,31 @@ it (reaction by checkpoint, then chapter by step), then calls `ackReward`. Until
 then a reload shows it again; afterwards it never replays. The next clue and
 object hint are already on the view (`locationClue`, `objectHint`).
 
-### For the field AR app (`/field/`)
+### The scanner (`field/`, served at `/field/scan`)
 
-The field app scans and runs the activity. It never plays chapters or shows
-clues (`UI.md` §5).
+The scanner only scans. It never plays chapters, shows clues or takes answers
+(`UI.md` §5).
 
-1. Find the team: query `teamViews` where `deviceUid == auth.currentUser.uid`
+1. It finds the team: query `teamViews` where `deviceUid == auth.currentUser.uid`
    (limit 1). The document ID is the `teamId`.
-2. `/field/scan`: when MindAR recognises a scan object, call `recordArrival`
-   with that object's checkpoint ID (`CP2`…`CP8`). On `match: false` show
-   "THIS IS NOT YOUR SIGNAL" and stay in the scanner. On `match: true` go to
-   `/field/activity?cp=CPx`. Flutter also opens `/field/activity?cp=CPx`
-   directly when `teamViews.activeCheckpoint` is set (a reload mid-activity).
-3. `/field/activity`: when the activity is finished, call `submitAnswer` with
-   the same `checkpointId`. `answer` is a string, or an array/number if
-   `answers.ts` uses the `sequence` / `set` / `numeric` mode for that checkpoint.
-4. On `correct: true`, redirect to `/`. Flutter sees the new state and plays
-   the reward.
-5. Call `reportLocation` every ~30 s while the page is open; the Flutter app
-   only sends its heartbeat while it is the open page.
+2. When MindAR recognises a scan object it calls `recordArrival` with that
+   object's checkpoint ID (`CP2`…`CP8`). On `match: false` it shows
+   "THIS IS NOT YOUR SIGNAL" and keeps scanning. On `match: true` it returns to
+   the Flutter app at `/#/fragments`; it goes straight there too when
+   `teamViews.activeCheckpoint` is already set.
+3. The **Flutter app** then shows that fragment unlocked and calls
+   `submitAnswer` with `teamViews.activeCheckpoint` as the `checkpointId`.
+   `answer` is a string, or an array/number if `answers.ts` uses the
+   `sequence` / `set` / `numeric` mode for that checkpoint.
+4. On `correct: true` the team view carries the reward, and Flutter plays it.
+
+The scanner sends no heartbeat: `reportLocation` comes from the Flutter app,
+and only while it is the open page.
 
 ## 5. Admin callable
 
 `facilitatorAction({ type, teamId?, checkpointId?, decision? })` — caller must
-have a document at `/facilitators/{uid}`. With `role: "desk"` only the four
+have a document at `/facilitators/{uid}`. With `role: "desk"` only the
 actions marked **desk** are allowed.
 
 | `type` | Needs | Effect |
@@ -136,6 +141,7 @@ actions marked **desk** are allowed.
 | `releaseDevice` | `teamId` | frees the team so a replacement phone can log in |
 | `listGateCodes` **desk** | — | returns the 12 gate codes for the CP1 desk (not logged) |
 | `contentStatus` | — | counts of delivered vs placeholder content (not logged) |
+| `ping` **desk** | — | does nothing; the dashboard reads the `serverTime` every response carries (not logged) |
 | `seedTeams` | — | creates missing teams; never overwrites |
 | `resetTeam` | `teamId` | rehearsals: wipes one team's progress, keeps the phone (no button in the app) |
 | `resetEvent` | — | after a rehearsal: clears the clock, wipes every team and releases every phone |
@@ -153,6 +159,10 @@ npm run test:unit    # game rules, no emulator
 npm test             # + functions and Firestore rules on the emulators (needs Java 21+)
 ```
 
+`npm test` needs the Firebase CLI on the PATH (`npm i -g firebase-tools`).
+Without it, run `npm run build` and then the same suites through npx:
+`npx firebase-tools emulators:exec --only auth,firestore,functions "npm run test:running"`.
+
 First run on a new project (or the emulator):
 
 1. Create the facilitator's email/password user in Firebase Auth, copy its UID.
@@ -162,8 +172,14 @@ First run on a new project (or the emulator):
    **Create missing teams** on the SETUP tab.)
 3. Replace every `TODO_*` value in `functions/src/content/`.
 
-Flutter app: `flutter pub get`, then `flutter build web`. Fonts, the noise
-texture and the preflight test tone are bundled under `flutter_app/assets/`.
+Flutter app (web only): `flutter pub get`, then `flutter build web`. Fonts,
+the noise texture and the preflight test tone are bundled under
+`flutter_app/assets/`.
+
+Firestore rules and indexes: `firebase deploy --only firestore` from
+`treasure hunt/`. Always pass `--only firestore`: a bare `firebase deploy`
+would also try Cloud Functions and Firebase Hosting, which this project does
+not use.
 
 ### Rehearsing on the local emulators
 
@@ -187,14 +203,15 @@ Then open http://127.0.0.1:5000 (the hosting emulator serves the build).
    ```
    cd "treasure hunt/functions"
    set FIRESTORE_EMULATOR_HOST=127.0.0.1:8080
-   set GCLOUD_PROJECT=treasure-hunt-38935
+   set GCLOUD_PROJECT=echo-protocol-da7f7
    node lib/scripts/seed.js --facilitator <uid> "Name"
    ```
 3. Log in as that facilitator, press START GAME, then log in as a team in a
    second browser profile (team ID `T1`, password `TODO_LOGIN_T1` until the
    placeholders are replaced).
-4. There is no field AR app yet, so use **Force-complete** on the TEAMS tab to
-   move a team through its checkpoints.
+4. The hosting emulator does not serve the scanner (`/field/scan` exists only
+   on the Vercel build), so use **Force-complete** on the TEAMS tab to move a
+   team through its checkpoints.
 
 Two things behave differently on the emulators only:
 
@@ -230,6 +247,8 @@ These are operational needs, not gameplay. Remove any the club does not want.
 
 ## 8. Not built yet (from UI.md)
 
+- **The fragment puzzles** — an unlocked fragment shows a placeholder line and
+  one answer field (UI.md §5). The real activities come from the AR team.
 - **"Team left campus" alert** and **checkpoint markers on the map** — both need
   the real coordinates, which the club has not fixed yet
   (`flutter_app/lib/core/models/checkpoint.dart`).
@@ -240,18 +259,21 @@ These are operational needs, not gameplay. Remove any the club does not want.
 - **Device ID via `shared_preferences`** — the one-phone rule uses the Firebase
   anonymous Auth UID instead, which needs no extra storage.
 
-## Hosting without the Blaze plan (Vercel)
+## 9. Hosting on Vercel (no Blaze plan)
 
-Cloud Functions need the Blaze plan. The live test deployment avoids it: the
-same eight callables run as one Vercel function, and Firestore and Auth stay
-on the free Spark plan (project `echo-protocol-da7f7`).
+Cloud Functions need the paid Blaze plan, so the live site does not use them:
+the same eight callables run as one Vercel function, and Firestore and Auth
+stay on the free Spark plan (project `echo-protocol-da7f7`).
 
 - `vercel/api/index.js` serves every export of `functions/lib` at `/api/<name>`.
   They are unchanged `onCall` handlers, so tokens and errors work as before.
 - The Admin SDK reads the service account from the `FIREBASE_SERVICE_ACCOUNT`
   environment variable (set in the Vercel project, never committed).
 - The Flutter app is built with `--dart-define=API_BASE=/api`, which makes
-  `callFunction` call this site instead of Cloud Functions.
+  `callFunction` (`lib/core/services/backend_call.dart`) call this site
+  instead of Cloud Functions.
+- The scanner page calls `/api/recordArrival` on the same site, with the same
+  callable protocol (`field/session.js`).
 
 Deploy from Git Bash:
 
@@ -261,5 +283,7 @@ FLUTTER=/path/to/flutter.bat bash build.sh
 npx vercel deploy --prod
 ```
 
-The field AR app must call `/api/recordArrival` and `/api/submitAnswer` on the
-same site, with the same callable protocol.
+`build.sh` empties and rebuilds `vercel/public` (the Flutter build plus
+`field/`) and `vercel/backend` (`functions/lib`) on every run. Nothing reaches
+the live site until `vercel deploy --prod` is run: this Vercel project is not
+connected to git.

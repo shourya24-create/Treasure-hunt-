@@ -1,5 +1,9 @@
 # ECHO Protocol Hunt — Product Requirements Document
 
+> **Planning document, written before the build.** It is kept for the
+> reasoning behind the design. Where it differs from [the README](../README.md)
+> or the code, those win.
+
 > **Status:** Draft | **Last updated:** 2026-09-26 | **Owner:** Team Vision, AR/VR Council, KJSSE
 
 ## 1. Overview

@@ -1,17 +1,27 @@
 # flutter_app
 
-A new Flutter project.
+The Flutter app of The Echo Protocol: the team's phone (`lib/player/`) and the
+admin dashboard (`lib/admin/`) in one **web** app. It cannot be built for
+Android, iOS or desktop, because it uses `dart:html`.
 
-## Getting Started
+- Screens, routes and widgets: [../UI.md](../UI.md)
+- Colours, type and components: [../DESIGN_SYSTEM.md](../DESIGN_SYSTEM.md),
+  implemented in `lib/theme.dart` and `lib/widgets/`
+- What it calls on the backend: [../BACKEND.md](../BACKEND.md)
 
-This project is a starting point for a Flutter application.
+## Commands
 
-A few resources to get you started if this is your first Flutter project:
+```
+flutter pub get
+flutter analyze
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+Two builds exist; pick one by flag:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+| Build | Command | Talks to |
+|---|---|---|
+| Live site | `bash ../vercel/build.sh` (runs `flutter build web --dart-define=API_BASE=/api`) | the live Firebase project, and the callables at this site's `/api/<name>` |
+| Local rehearsal | `flutter build web --dart-define=USE_EMULATORS=true` | the Firebase emulators on your machine |
+
+Use `../vercel/build.sh` for the live build rather than typing the flag in Git
+Bash, which would rewrite `/api` into a Windows path.

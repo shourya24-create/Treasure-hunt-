@@ -76,7 +76,9 @@ Writing rules that follow from this:
 ### 4.1 Before the event
 - Each team logs in on **exactly one phone**. That phone is the one tracked
   (GPS) for the whole event. A second login for the same team is refused.
-- The app shows a waiting screen: "CP1 locked".
+- Until the admin starts the game the app shows its Home tab with a
+  "Waiting for start" notice and a short introduction to the game. Only Home
+  and Profile open; Fragments, Scan and Archive unlock when the game starts.
 
 ### 4.2 CP1: the starting room (same for everyone)
 1. All 12 teams sit in the starting room.
@@ -103,11 +105,12 @@ Writing rules that follow from this:
    what to look for.
    - The scanner knows all 7 scan objects and recognises which one it sees.
    - It's the team's next checkpoint (`route[step]`) → arrival is recorded
-     (time + phone) and the **AR activity opens**.
+     (time + phone) and **that fragment unlocks** in the app's Fragments tab.
    - It's another checkpoint's object → "This is not your signal." Nothing
      unlocks, nothing is revealed about that checkpoint.
-3. The team plays the **AR activity** (wire-cutting, bomb defusal, riddle, etc.,
-   built by the AR team) and submits the result.
+3. The team solves the unlocked fragment's **activity** (wire-cutting, bomb
+   defusal, riddle, etc., built by the AR team; until those are delivered the
+   app shows a plain answer field) and submits the result.
    - Wrong → retry. There are no lockouts unless the activity's own design says otherwise.
 4. Solved → +100 points → the app plays, in order:
    1. **Station reaction** for this checkpoint (a few seconds)
@@ -143,8 +146,9 @@ Writing rules that follow from this:
   (headset + decision).
 - They keep the points they earned. Their finish time = when their decision is recorded.
 
-### 4.7 Journal (available all game)
-- Lists every chapter the team has unlocked, **in chapter order**, and lets them replay it.
+### 4.7 Archive (once the game has started)
+- Lists every fragment the team has cleared, with the chapter it unlocked,
+  **in chapter order**, and lets them replay it.
 - Never shows unvisited checkpoints or the rest of the route.
 
 ---

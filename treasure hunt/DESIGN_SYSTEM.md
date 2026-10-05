@@ -1,6 +1,10 @@
 # The Echo Protocol — Design System v2
 ### For Stitch UI generation · existing panels, restyle only
 
+> Implemented in `flutter_app/lib/theme.dart` and `flutter_app/lib/widgets/`
+> (Flutter app) and `field/field.css` (scanner page). The text below is the
+> original restyle brief, kept as the reference for every token.
+
 ---
 
 ## 1. Direction

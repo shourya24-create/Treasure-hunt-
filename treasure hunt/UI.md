@@ -14,7 +14,8 @@ it, but must not change what the screen does.
 
 ## 1. App structure
 
-**One Flutter Web app**, deployed to Firebase Hosting, with two route trees:
+**One Flutter Web app** with two route trees. It is served by Vercel (see
+`BACKEND.md` §9); the Firebase Hosting emulator serves it for local rehearsals.
 
 | Side | Path | Device | Navigation |
 |---|---|---|---|
@@ -27,15 +28,15 @@ Role routing (in `app_router.dart` redirect):
 - Facilitator → `/admin/live`
 - Desk volunteer → `/admin/gate` and `/admin/final` only
 
-The AR scanner and AR activities are **not Flutter**. They live in the separate
-field app at `/field/` (MindAR + Three.js, built by the AR team). See §5.
+The scanner is **not Flutter**: it is the static page at `/field/scan` (MindAR,
+in `field/`). It only recognises the scan object; the fragment is then solved
+in the Flutter app. See §5.
 
 ---
 
 ## 2. Design tokens in Flutter
 
-All values come from `DESIGN_SYSTEM.md`. Replace the old cyan palette in
-`lib/theme.dart` completely.
+All values come from `DESIGN_SYSTEM.md` and live in `lib/theme.dart`.
 
 ### 2.1 Colours (`EchoColors`)
 
@@ -70,7 +71,7 @@ Widgets use these names only. No raw `Color(0x…)` outside `theme.dart`.
 | Gold | The one selected thing | See the gold budget below |
 
 **Gold budget (one per screen):**
-- Player: the **active bottom-nav tab**. On screens that hide the nav (§3.4), the
+- Player: the **active bottom-nav tab**. On screens that hide the nav (§3.4a), the
   focused input field or the single primary focus.
 - Admin: the **active rail item**. Selected table rows use `bgSurfaceRaised` +
   a `signalGreen` border, **never** gold.
@@ -93,8 +94,8 @@ Wi-Fi can't break typography. No rounded sans-serif anywhere.
   background, wrapped in `IgnorePointer`. It's a static image, not animated, for
   low-end phones.
 - **Scan-lines** (a `CustomPainter` of faint horizontal bands) only on hero screens:
-  Waiting Room, Chapter playback, Return to Base, Mission Complete, Game Over,
-  and Leaderboard projector mode.
+  the login, the Home tab in its Waiting, Return to base, Complete and Time's up
+  states (§3.4), chapter playback, and the Leaderboard's projector mode.
 - Irregular card borders are a nice-to-have. Ship crisp `hairline` borders first.
 
 ### 2.5 Motion
@@ -192,9 +193,9 @@ Complete and Time's up states.
 
 | Route | Screen | Notes |
 |---|---|---|
-| `/login` | `LoginScreen` | Team ID + password (mono fields). If the team is already active on another phone: a red card saying "THIS TEAM IS ACTIVE ON ANOTHER PHONE. Ask a club member." Replaces the current `create_join_screen.dart`, because teams are created by the club, not by players. |
+| `/login` | `LoginScreen` | Team ID + password (mono fields). If the team is already active on another phone: a red card saying "THIS TEAM IS ACTIVE ON ANOTHER PHONE. Ask a club member." Teams are created by the club, not by players. |
 | `/preflight` | `PreflightScreen` | Shown once after the first login, **before lights-off**. Three checklist rows: CAMERA, LOCATION, SOUND (test tone). Each row is ghost → live → done. "READY" is enabled only when all three are done. Denied permission → a red row + step-by-step fix text for Android and iPhone. |
-| `/field/scan` | *(field app, not Flutter)* | Opened by the SCAN button. See §5. |
+| `/field/scan` | *(scanner page, not Flutter)* | Opened by the SCAN button. See §5. |
 
 ### 3.6 FRAGMENTS tab (`/fragments`)
 - Header "FRAGMENTS" + mono "3 / 8 RECOVERED", then the `FragmentTracker`.
@@ -394,9 +395,10 @@ Flutter SCAN button   ──SCAN──▶ /field/scan
   (`field/targets/cp2.png` … `cp8.png`), to be replaced by the real scan objects.
 - Flutter **never** loads Three.js or MindAR, and never embeds them in an iframe
   (the camera in an iframe is unreliable on iPhone).
-- The field app **never** plays chapters or shows clues. That is Flutter's job.
-- The field app's overlay UI (exit button, "THIS IS NOT YOUR SIGNAL") uses the same
-  `DESIGN_SYSTEM.md` tokens, written as CSS variables.
+- The scanner **never** plays chapters, shows clues or takes answers. That is
+  Flutter's job.
+- The scanner's overlay UI (exit button, "THIS IS NOT YOUR SIGNAL") uses the same
+  `DESIGN_SYSTEM.md` tokens, written as CSS variables in `field/field.css`.
 
 ---
 

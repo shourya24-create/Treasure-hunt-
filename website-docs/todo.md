@@ -1,5 +1,9 @@
 # ECHO Protocol Hunt — Todo
 
+> **Planning document, written before the build.** It is kept for the
+> reasoning behind the design. Where it differs from [the README](../README.md)
+> or the code, those win.
+
 > **Last updated:** 2026-09-27. Check items off as they're completed; keep this file in sync with actual progress.
 
 ## Phase 1: Playable Skeleton

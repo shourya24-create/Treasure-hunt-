@@ -1,6 +1,17 @@
 # ECHO Protocol Hunt
 
-The web app that runs Team Vision's campus treasure hunt. Planning docs live in [website-docs/](website-docs/).
+The web app that runs Team Vision's campus treasure hunt. Its original planning docs (written before the build, partly outdated) live in [website-docs/](website-docs/).
+
+## Repository layout
+
+This repository holds **two separate apps** for the same event:
+
+| Where | What | How it is deployed |
+|---|---|---|
+| The repo root (`app/`, `components/`, `lib/`, `models/`, `scripts/`, `data/`, `public/`) | **ECHO Protocol Hunt**: the QR-code based Next.js + MongoDB app this README describes. | Vercel rebuilds and deploys it **on every git push**. |
+| [`treasure hunt/`](treasure%20hunt/) | **The Echo Protocol**: the newer Flutter web app (player side and admin dashboard) with a Firestore backend and an AR scanner. Start with [`treasure hunt/README.md`](treasure%20hunt/README.md). | By hand, from `treasure hunt/vercel/`. A git push does not deploy it. |
+
+The two apps share nothing at runtime. `tsconfig.json` excludes `treasure hunt/` from this app's type check.
 
 Next.js 14 (App Router) + MongoDB (Mongoose) in one repo, deployed to Vercel.
 
@@ -56,7 +67,7 @@ Everything in these files right now is **placeholder**.
 
 - **Route**: each team starts at checkpoint `offset + 1` and walks the loop forwards, or backwards if `reverse` is set. 12 teams on 8 checkpoints means four pairs share a start; one of each pair walks in reverse so they split after the first stop. Only the current location is ever sent to the phone.
 - **QR**: `/c/<id>?t=<hmac>`. The signature stops hand-typed URLs; the real lock is the sequence check. Scanning ahead does nothing.
-- **Answers**: checked server-side after normalising (case, spaces, punctuation). Atomic conditional updates mean four phones submitting at once record one result. There's a 30 s cooldown per team.
+- **Answers**: checked server-side after normalising (case, spaces, punctuation). Atomic conditional updates mean duplicate submissions (a double tap, a queued offline answer racing a live one) record one result. There's a 30 s cooldown per team.
 - **Score**: computed from the event log on read: `finish − start + hints × penalty + adjustments`. Never stored as a running total.
 - **Offline**: when a puzzle opens, the phone gets salted hashes of the accepted answers, plus the fragment and next location encrypted with a key derived from the answer. With no signal it checks answers locally, reveals the next location, and queues the answer in IndexedDB. The server re-validates on reconnect and flags disagreements on the dashboard. A service worker (`public/sw.js`, production builds only) keeps the app shell and media available.
 
