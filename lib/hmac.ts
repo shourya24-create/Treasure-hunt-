@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 
 // Signs checkpoint URLs so /c/5 can't be hand-typed. Not the primary
-// anti-cheat — the sequence check is (architecture.md §4.4).
+// anti-cheat — the sequence check is (website-docs/architecture.md §4.4).
 function secret(): string {
   const s = process.env.QR_SECRET;
   if (!s) throw new Error('QR_SECRET is not set');

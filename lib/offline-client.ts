@@ -1,15 +1,15 @@
 'use client';
 
 import { norm } from './norm';
+import type { LocateInfo, SealedAnswer } from './types';
 
-// Client half of offline play (feature.md §18). Mirrors lib/seal.ts:
+// Client half of offline play (website-docs/feature.md §18). Mirrors lib/seal.ts:
 // hash = sha256(salt:norm(answer)), key = sha256(key:salt:norm(answer)).
 
-export type Sealed = { hash: string; iv: string; data: string };
 export type Reveal = {
   fragment: string;
   title: string;
-  next: { cpId: number; index: number; total: number; locationHint: string; hook: string } | null;
+  next: LocateInfo | null;
 };
 
 const enc = new TextEncoder();
@@ -17,7 +17,7 @@ const hex = (buf: ArrayBuffer) => [...new Uint8Array(buf)].map((b) => b.toString
 const b64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 
 /** Checks an answer on the phone. Returns the unsealed reveal if correct, null if wrong. */
-export async function checkLocal(answer: string, salt: string, sealed: Sealed[]): Promise<Reveal | null> {
+export async function checkLocal(answer: string, salt: string, sealed: SealedAnswer[]): Promise<Reveal | null> {
   const n = norm(answer);
   if (!n || !crypto?.subtle) return null;
   const hash = hex(await crypto.subtle.digest('SHA-256', enc.encode(`${salt}:${n}`)));

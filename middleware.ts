@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { ADMIN_COOKIE, verifyToken } from '@/lib/auth';
 
-// Admin is a separate credential and cookie role (architecture.md §8).
+// Admin is a separate credential and cookie role (website-docs/architecture.md §8).
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   if (pathname === '/admin/login' || pathname === '/api/admin/login') return NextResponse.next();

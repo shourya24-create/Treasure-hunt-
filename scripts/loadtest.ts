@@ -13,14 +13,13 @@ import path from 'path';
 
 const BASE = (process.env.LOADTEST_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 // One phone per team, so at most one client per seeded team.
-const { teams: allTeams } = JSON.parse(readFileSync(path.join(process.cwd(), 'data/teams.json'), 'utf8')) as { teams: { teamId: string; passcode: string }[] };
-const CLIENTS = Math.min(Number(process.env.LOADTEST_CLIENTS ?? 20), allTeams.length);
+const { teams } = JSON.parse(readFileSync(path.join(process.cwd(), 'data/teams.json'), 'utf8')) as { teams: { teamId: string; passcode: string }[] };
+const CLIENTS = Math.min(Number(process.env.LOADTEST_CLIENTS ?? 20), teams.length);
 const ROUNDS = Number(process.env.LOADTEST_ROUNDS ?? 10);
 // Real phones poll every ~8s. PACE_MS > 0 simulates that (with jitter);
 // 0 fires back-to-back, which exceeds Atlas M0's ~100 ops/s throughput cap.
 const PACE_MS = Number(process.env.LOADTEST_PACE_MS ?? 0);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const teams = allTeams;
 
 const timings: number[] = [];
 const errors = new Map<string, number>();

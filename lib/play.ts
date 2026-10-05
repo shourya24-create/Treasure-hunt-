@@ -166,7 +166,7 @@ export async function scan(teamId: string, cpId: number, token: string | null): 
     );
     if (res.upsertedCount) await logEvent(teamId, 'scan', cpId);
   } catch (e: unknown) {
-    // Two phones scanning at once: the unique index rejects the duplicate.
+    // Two scans racing (a double tap): the unique index rejects the duplicate.
     if ((e as { code?: number }).code !== 11000) throw e;
   }
   return 'ok';
@@ -202,7 +202,8 @@ export async function submitAnswer(teamId: string, input: AnswerInput): Promise<
   const correct = matches(input.answer, answersFor(cp, team.batch));
 
   // Atomic conditional update: the row changes only if it is still open and
-  // outside the cooldown, so four phones submitting at once record one result.
+  // outside the cooldown, so duplicate submissions (a double tap, a queued
+  // offline answer racing a live one) record one result.
   // Offline submissions skip the cooldown — they were already rate-limited on
   // the phone, and the local hash makes brute force possible offline anyway.
   const filter: Record<string, unknown> = { teamId, cpId: input.cpId, status: 'open' };

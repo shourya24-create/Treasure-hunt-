@@ -125,10 +125,7 @@ export const Settings = model('Settings', SettingsSchema);
 export const LoginAttempt = model('LoginAttempt', LoginAttemptSchema);
 export const Location = model('Location', LocationSchema);
 
-export type TeamDoc = InferSchemaType<typeof TeamSchema>;
 export type CheckpointDoc = InferSchemaType<typeof CheckpointSchema>;
-export type ProgressDoc = InferSchemaType<typeof ProgressSchema>;
-export type EventDoc = InferSchemaType<typeof EventSchema>;
 export type SettingsDoc = InferSchemaType<typeof SettingsSchema>;
 
 export async function logEvent(

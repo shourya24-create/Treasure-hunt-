@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 // Cached connection. Without this, every serverless invocation opens a new
-// pool and Atlas M0 runs out of connections mid-event (architecture.md §9).
+// pool and Atlas M0 runs out of connections mid-event (website-docs/architecture.md §9).
 type Cache = { conn: typeof mongoose | null; promise: Promise<typeof mongoose> | null };
 const g = globalThis as unknown as { _mongoose?: Cache };
 const cache: Cache = g._mongoose ?? (g._mongoose = { conn: null, promise: null });

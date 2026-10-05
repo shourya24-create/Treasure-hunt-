@@ -1,7 +1,8 @@
 import { createCipheriv, createHash, randomBytes } from 'crypto';
 import { norm } from './norm';
+import type { SealedAnswer } from './types';
 
-// Offline checking without ever sending plaintext answers (feature.md §18).
+// Offline checking without ever sending plaintext answers (website-docs/feature.md §18).
 // answerHash = sha256(salt:normalised answer). The fragment and next location
 // are AES-GCM sealed with a key derived from the answer, so a phone can only
 // open them by typing a correct answer. Mirrored in lib/offline-client.ts.
@@ -14,13 +15,11 @@ function keyFor(salt: string, answer: string): Buffer {
   return createHash('sha256').update(`key:${salt}:${norm(answer)}`).digest();
 }
 
-export type Sealed = { hash: string; iv: string; data: string };
-
 /** One sealed copy per accepted answer variant. */
-export function sealForAnswers(salt: string, answers: string[], payload: unknown): Sealed[] {
+export function sealForAnswers(salt: string, answers: string[], payload: unknown): SealedAnswer[] {
   const plain = Buffer.from(JSON.stringify(payload), 'utf8');
   const seen = new Set<string>();
-  const out: Sealed[] = [];
+  const out: SealedAnswer[] = [];
   for (const a of answers) {
     const n = norm(a);
     if (!n || seen.has(n)) continue;
