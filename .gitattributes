@@ -1,0 +1,5 @@
+# Shell scripts must keep LF line endings on Windows checkouts, or bash cannot run them.
+*.sh text eol=lf
+
+# Compiled MindAR image targets.
+*.mind binary
