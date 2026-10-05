@@ -1,5 +1,5 @@
 /**
- * functions.test.ts — Cloud Functions integration tests via the Firebase emulator.
+ * functions.test.ts — Integration tests of the callables on the Firebase emulators.
  *
  * Tests: claimTeam, enterGateCode, recordArrival, submitAnswer, ackReward,
  * requestHelp, reportLocation, facilitatorAction — with placeholder codes and answers.

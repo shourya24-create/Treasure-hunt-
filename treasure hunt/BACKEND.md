@@ -172,9 +172,12 @@ First run on a new project (or the emulator):
    **Create missing teams** on the SETUP tab.)
 3. Replace every `TODO_*` value in `functions/src/content/`.
 
-Flutter app (web only): `flutter pub get`, then `flutter build web`. Fonts,
-the noise texture and the preflight test tone are bundled under
-`flutter_app/assets/`.
+Flutter app (web only): `flutter pub get`, then `flutter analyze`. Do not run
+a bare `flutter build web`: that build reads the live project but sends every
+call to Cloud Functions, where nothing is deployed. Build with
+`--dart-define=USE_EMULATORS=true` for a rehearsal (below), or with
+`vercel/build.sh` for the live site (§9). Fonts, the noise texture and the
+preflight test tone are bundled under `flutter_app/assets/`.
 
 Firestore rules and indexes: `firebase deploy --only firestore` from
 `treasure hunt/`. Always pass `--only firestore`: a bare `firebase deploy`
@@ -199,13 +202,15 @@ Then open http://127.0.0.1:5000 (the hosting emulator serves the build).
 
 1. In the emulator UI (http://127.0.0.1:4000) add an email/password user under
    Authentication and copy its UID.
-2. Seed against the emulator:
+2. Seed against the emulator (Git Bash; the two variables are what keep the
+   seed on the emulator, so do not leave them out):
    ```
    cd "treasure hunt/functions"
-   set FIRESTORE_EMULATOR_HOST=127.0.0.1:8080
-   set GCLOUD_PROJECT=echo-protocol-da7f7
-   node lib/scripts/seed.js --facilitator <uid> "Name"
+   npm run build
+   FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 GCLOUD_PROJECT=echo-protocol-da7f7 node lib/scripts/seed.js --facilitator <uid> "Name"
    ```
+   In cmd.exe, run `set FIRESTORE_EMULATOR_HOST=127.0.0.1:8080` and
+   `set GCLOUD_PROJECT=echo-protocol-da7f7` first, then the `node` command.
 3. Log in as that facilitator, press START GAME, then log in as a team in a
    second browser profile (team ID `T1`, password `TODO_LOGIN_T1` until the
    placeholders are replaced).
@@ -256,8 +261,6 @@ These are operational needs, not gameplay. Remove any the club does not want.
 - **Offline action queue** — the phone shows "SIGNAL LOST · RETRYING" and a
   TRY AGAIN button, but does not queue actions while offline.
 - **EXPORT CSV** copies the CSV to the clipboard rather than downloading a file.
-- **Device ID via `shared_preferences`** — the one-phone rule uses the Firebase
-  anonymous Auth UID instead, which needs no extra storage.
 
 ## 9. Hosting on Vercel (no Blaze plan)
 

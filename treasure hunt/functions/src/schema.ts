@@ -270,7 +270,7 @@ export interface FacilitatorCommand {
   decision: string | null;
   issuedAt: Timestamp;
   facilitatorUid: string;
-  /** Set to true by the Cloud Function after the command is handled. */
+  /** Set to true by facilitatorAction after the command is handled. */
   processed: boolean;
 }
 

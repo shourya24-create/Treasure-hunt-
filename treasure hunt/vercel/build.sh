@@ -8,16 +8,23 @@
 # Every run starts from empty output folders, so a file deleted from the
 # sources is never deployed again.
 #
-# Run from Git Bash, then deploy this folder with `vercel deploy --prod`.
-# FLUTTER can point at flutter.bat when Flutter is not on PATH.
+# Run it as a file from Git Bash (`bash build.sh`), then deploy this folder
+# with `vercel deploy --prod`. FLUTTER can point at flutter.bat when Flutter
+# is not on PATH.
 set -euo pipefail
 
-here="$(cd "$(dirname "$0")" && pwd)"
+here="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 root="$(dirname "$here")"
 flutter="${FLUTTER:-flutter}"
 
-# Generated folders only (all three are git-ignored).
-rm -rf "$root/functions/lib" "$here/public" "$here/backend"
+# Refuse to delete anything unless this really is "treasure hunt/vercel".
+if [ ! -f "$here/api/index.js" ] || [ ! -d "$root/functions/src" ] || [ ! -d "$root/flutter_app/lib" ]; then
+  echo "build.sh: cannot find the project around $here. Run it as a file: bash build.sh" >&2
+  exit 1
+fi
+
+# Generated folders only (all four are git-ignored).
+rm -rf "$root/functions/lib" "$root/flutter_app/build/web" "$here/public" "$here/backend"
 
 (cd "$root/functions" && npm run build)
 # Git Bash would turn "/api" into a Windows path; these two switch that off.

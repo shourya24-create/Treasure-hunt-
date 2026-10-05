@@ -1,8 +1,8 @@
 # The Echo Protocol — Gameplay Structure
 
 This is the single source of truth for how the event plays. Build the Flutter
-app and the Cloud Functions against this document. If the code and this
-document disagree, this document wins until it is changed on purpose.
+app and the backend callables (`functions/`) against this document. If the code
+and this document disagree, this document wins until it is changed on purpose.
 
 Puzzle answers, story text, Echo's voice lines and the correct final decision
 are **not** in this file. They come from the story/AR team (see `agents.md` for
@@ -39,6 +39,8 @@ the placeholder rule).
 | **Station reaction** | Short audio/text tied to a **checkpoint** ("Wires cut. Signal clear."). |
 | **Chapter** | Echo's story voice line, tied to a **step**, never to a checkpoint. |
 | **Location clue** | The riddle that names a team's next checkpoint. Tied to the **destination** checkpoint. |
+| **Fragment** | The app's name for a checkpoint as a team meets it: Fragment 1 is CP1, Fragments 2–8 are the campus checkpoints in the order that team reaches them. Numbered by that order, never by checkpoint ID, so the number reveals nothing about the route. |
+| **Archive** | The app's log of the fragments a team has cleared, each with the chapter it unlocked (§4.7). |
 
 ---
 
@@ -289,7 +291,7 @@ Until delivered, use placeholders like `TODO_CHAPTER_3` and `TODO_CLUE_CP4` (see
 | `points` | Derived: 100 × completed − 20 × hints + 100 if the decision is correct |
 | `finalArrivedAt`, `decision`, `decidedAt` | Final |
 | `status` | waiting → playing → at final → finished (+ paused by admin) |
-| `deviceId` | One phone per team |
+| `deviceUid` | One phone per team |
 
 Rules:
 - **Next checkpoint** = first checkpoint in the route order not in `checkpointsDone`.

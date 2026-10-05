@@ -2,7 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Every write in this game goes through a Cloud Function (Admin SDK),
+    // Every write in this game goes through a callable (Admin SDK),
     // so no client is ever allowed to write anything. A phone can read only
     // its own team's view; facilitators can read everything.
 

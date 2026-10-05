@@ -116,7 +116,7 @@ The bottom bar (`PlayerNavBar`) has five slots: two tabs, the **SCAN** action, t
 |---|---|---|---|
 | **HOME** | `/` | house | What to do now + the story briefing (§3.4) |
 | **FRAGMENTS** | `/fragments` | grid | All 8 fragments; the open one holds the clue (§3.6) |
-| **SCAN** | *(action)* | viewfinder | Opens the field app scanner (§5). Not a tab. |
+| **SCAN** | *(action)* | viewfinder | Opens the scanner page (§5). Not a tab. |
 | **ARCHIVE** | `/archive` | archive box | Log of every cleared fragment (§3.7) |
 | **PROFILE** | `/profile` | person | Team info, this phone, help (§3.7a) |
 

@@ -20,6 +20,11 @@ targets**, to be replaced by the AR team's real scan objects. The AR
 activities themselves are still not built; the app shows a placeholder answer
 field. There is no `field-app/` folder.
 
+This note records what exists; it permits nothing further. The rules below
+still apply, and they cover `field/` too: unless a prompt says so, do not add
+activities or Three.js scene code to `field/`, and do not recompile or replace
+`field/targets/targets.mind`.
+
 Unless explicitly told otherwise in a prompt:
 - NEVER create, edit, or scaffold anything under `field-app/`.
 - NEVER compile or reference `.mind` marker files.
@@ -38,8 +43,9 @@ Never invent plausible-looking puzzle content — it will get mistaken for real 
 Firestore rules must always be role-scoped, and no client ever writes: every
 rule is `allow write: if false`, and all changes go through a callable. A phone
 reads only the `/teamViews` document it has claimed, plus `/game`; facilitators
-read `/teams`, `/teamViews` and `/facilitatorCommands`. Never leave or reintroduce an
-`if request.auth != null` catch-all rule.
+read `/teams`, `/teamViews` and `/facilitatorCommands`; any signed-in user may
+read its own `/facilitators/{uid}` document, which is how the dashboard learns
+its role. Never leave or reintroduce an `if request.auth != null` catch-all rule.
 
 ## Definition of done
 A phase is not complete until:

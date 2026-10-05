@@ -1,8 +1,8 @@
 /**
- * config.js — What the field pages need to know about the project.
+ * config.js — What the scanner page needs to know about the project.
  *
- * FIREBASE must match flutter_app/lib/firebase_options.dart (web): the field
- * pages run on the same site as the Flutter app and reuse its login.
+ * FIREBASE must match flutter_app/lib/firebase_options.dart (web): the
+ * scanner runs on the same site as the Flutter app and reuses its login.
  */
 
 export const FIREBASE = {

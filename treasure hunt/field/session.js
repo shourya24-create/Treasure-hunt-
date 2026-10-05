@@ -1,7 +1,7 @@
 /**
- * session.js — Who is holding this phone, and how the field pages talk to the game.
+ * session.js — Who is holding this phone, and how the scanner talks to the game.
  *
- * The Flutter app and these pages are on one site, so the Firebase login the
+ * The Flutter app and the scanner are on one site, so the Firebase login the
  * team made in the app is already here (UI.md §5). Nothing is typed again.
  */
 

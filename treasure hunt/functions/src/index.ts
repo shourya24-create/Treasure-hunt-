@@ -1,5 +1,5 @@
 /**
- * index.ts — Cloud Functions barrel file.
+ * index.ts — Barrel file of the callables.
  *
  * Initialises the Admin SDK once, then re-exports every function from
  * its own module. Do NOT add business logic here.
