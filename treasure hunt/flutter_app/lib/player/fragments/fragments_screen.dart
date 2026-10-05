@@ -19,7 +19,7 @@ import '../../core/models/game.dart';
 import '../../core/models/team.dart';
 import '../../core/providers/game_clock_provider.dart';
 import '../../core/providers/team_provider.dart';
-import '../../core/services/team_service.dart' show readableError;
+import '../../core/services/backend_call.dart' show readableError;
 import '../../theme.dart';
 import '../../widgets/code_field.dart';
 import '../../widgets/echo_button.dart';
@@ -28,7 +28,7 @@ import '../../widgets/echo_scaffold.dart';
 import '../../widgets/fragment_tracker.dart';
 import '../../widgets/section_label.dart';
 import '../../widgets/status_dot.dart';
-import '../shell/field_app.dart';
+import '../shell/open_scanner.dart';
 
 class FragmentsScreen extends StatelessWidget {
   const FragmentsScreen({super.key});

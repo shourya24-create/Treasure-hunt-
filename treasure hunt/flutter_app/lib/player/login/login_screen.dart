@@ -13,7 +13,7 @@ import 'package:provider/provider.dart';
 import '../../core/providers/admin_providers.dart';
 import '../../core/providers/team_provider.dart';
 import '../../core/services/auth_service.dart';
-import '../../core/services/team_service.dart' show readableError;
+import '../../core/services/backend_call.dart' show readableError;
 import '../../theme.dart';
 import '../../widgets/browser_compat_guard.dart';
 import '../../widgets/code_field.dart';

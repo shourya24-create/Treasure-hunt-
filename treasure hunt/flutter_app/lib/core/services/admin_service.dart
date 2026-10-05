@@ -8,7 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 import '../models/team.dart';
-import 'team_service.dart' show callFunction;
+import 'backend_call.dart';
 
 /// 'admin' runs everything; 'desk' runs the gate desk and the final desk only.
 enum FacilitatorRole { admin, desk }

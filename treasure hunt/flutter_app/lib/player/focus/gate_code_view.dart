@@ -8,14 +8,14 @@ library;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/providers/team_provider.dart';
-import '../../../core/services/team_service.dart' show readableError;
-import '../../../theme.dart';
-import '../../../widgets/code_field.dart';
-import '../../../widgets/echo_button.dart';
-import '../../../widgets/echo_scaffold.dart';
-import '../../../widgets/section_label.dart';
-import '../../../widgets/status_dot.dart';
+import '../../core/providers/team_provider.dart';
+import '../../core/services/backend_call.dart' show readableError;
+import '../../theme.dart';
+import '../../widgets/code_field.dart';
+import '../../widgets/echo_button.dart';
+import '../../widgets/echo_scaffold.dart';
+import '../../widgets/section_label.dart';
+import '../../widgets/status_dot.dart';
 
 class GateCodeView extends StatefulWidget {
   const GateCodeView({super.key});

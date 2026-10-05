@@ -416,6 +416,7 @@ Flutter SCAN button   ──SCAN──▶ /field/scan
 | `SignalBanner` | Offline / back-online banner |
 | `ConfirmDialog` | Title, consequence sentence, confirm button styled by action type |
 | `TeamChip` | Mono "T5" chip, coloured by team status |
+| `BrowserCompatGuard` | Wraps the login: a plain warning screen in browsers that cannot run the scanner (in-app browsers, old iOS Safari) |
 
 ---
 
@@ -424,24 +425,27 @@ Flutter SCAN button   ──SCAN──▶ /field/scan
 ```
 lib/
   main.dart · app_router.dart · theme.dart (EchoColors, EchoText, ThemeData)
+  firebase_options.dart (web config of the Firebase project)
   core/
-    models/     team.dart, route.dart, chapter.dart, checkpoint.dart
-    services/   auth_service.dart, team_service.dart, admin_service.dart, location_service.dart
+    models/     team.dart, route.dart, chapter.dart, checkpoint.dart, game.dart
+    services/   auth_service.dart, team_service.dart, admin_service.dart, location_service.dart,
+                backend_call.dart (how every callable is called), camera_check.dart (preflight)
     providers/  team_provider.dart, game_clock_provider.dart, admin_providers.dart
   player/
-    shell/      player_shell.dart, player_nav_bar.dart, player_top_bar.dart, field_app.dart
+    shell/      player_shell.dart, player_nav_bar.dart, player_top_bar.dart, open_scanner.dart
     home/       home_screen.dart, home_content.dart (the briefing text)
     fragments/  fragments_screen.dart
     archive/    archive_screen.dart
     profile/    profile_screen.dart
-    mission/    views/gate_code_view.dart, views/reward_sequence_view.dart (§3.4a)
+    focus/      gate_code_view.dart, reward_sequence_view.dart (§3.4a)
     login/      login_screen.dart
     preflight/  preflight_screen.dart
   admin/
-    shell/      admin_shell.dart, game_header.dart
+    shell/      admin_shell.dart, game_header.dart, admin_actions.dart
     live/ map/ teams/ gate/ final/ leaderboard/ log/ setup/
   widgets/      (§6)
 assets/
+  audio/        test_tone.wav (the preflight sound check)
   fonts/        Oswald, NotoSerif, JetBrainsMono
   textures/     noise.png
 ```
@@ -450,13 +454,14 @@ assets/
 
 | Need | Package |
 |---|---|
-| Routing | `go_router` (already present) |
-| State | `provider` (already present) |
-| Firebase | `firebase_core`, `firebase_auth`, `cloud_firestore`, `cloud_functions` (already present) |
+| Routing | `go_router` |
+| State | `provider` |
+| Firebase | `firebase_core`, `firebase_auth`, `cloud_firestore`, `cloud_functions` |
 | Chapter audio | `just_audio` |
 | GPS | `geolocator` |
 | Admin map | `flutter_map` + `latlong2` |
-| Device ID (one phone per team) | `shared_preferences` |
+| Remembering the preflight check on this phone | `shared_preferences` |
+| Opening the scanner page | `url_launcher` |
 
 ---
 

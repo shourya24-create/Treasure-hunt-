@@ -10,15 +10,15 @@ library;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/models/chapter.dart';
-import '../../../core/providers/team_provider.dart';
-import '../../../core/services/team_service.dart' show readableError;
-import '../../../theme.dart';
-import '../../../widgets/chapter_player.dart';
-import '../../../widgets/echo_button.dart';
-import '../../../widgets/echo_scaffold.dart';
-import '../../../widgets/section_label.dart';
-import '../../../widgets/status_dot.dart';
+import '../../core/models/chapter.dart';
+import '../../core/providers/team_provider.dart';
+import '../../core/services/backend_call.dart' show readableError;
+import '../../theme.dart';
+import '../../widgets/chapter_player.dart';
+import '../../widgets/echo_button.dart';
+import '../../widgets/echo_scaffold.dart';
+import '../../widgets/section_label.dart';
+import '../../widgets/status_dot.dart';
 
 class RewardSequenceView extends StatefulWidget {
   const RewardSequenceView({super.key, required this.reward});

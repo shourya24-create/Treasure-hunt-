@@ -17,9 +17,9 @@ import '../../theme.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/echo_scaffold.dart';
 import '../../widgets/status_dot.dart';
-import '../mission/views/gate_code_view.dart';
-import '../mission/views/reward_sequence_view.dart';
-import 'field_app.dart';
+import '../focus/gate_code_view.dart';
+import '../focus/reward_sequence_view.dart';
+import 'open_scanner.dart';
 import 'player_nav_bar.dart';
 import 'player_top_bar.dart';
 

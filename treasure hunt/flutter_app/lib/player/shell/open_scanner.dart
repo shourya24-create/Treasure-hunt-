@@ -1,4 +1,4 @@
-/// player/shell/field_app.dart — Hands the phone over to the scanner.
+/// player/shell/open_scanner.dart — Hands the phone over to the scanner.
 ///
 /// Same-origin navigation: Flutter at / and the scanner at /field/scan.
 /// `_self` reuses the Firebase anonymous session (UI.md §5). A matching scan

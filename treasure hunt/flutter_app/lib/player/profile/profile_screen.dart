@@ -12,7 +12,7 @@ import '../../core/models/team.dart';
 import '../../core/providers/game_clock_provider.dart';
 import '../../core/providers/team_provider.dart';
 import '../../core/services/location_service.dart';
-import '../../core/services/team_service.dart' show readableError;
+import '../../core/services/backend_call.dart' show readableError;
 import '../../theme.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/echo_button.dart';

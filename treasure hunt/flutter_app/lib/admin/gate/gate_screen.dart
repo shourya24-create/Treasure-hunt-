@@ -16,7 +16,7 @@ import '../../core/models/route.dart';
 import '../../core/models/team.dart';
 import '../../core/providers/admin_providers.dart';
 import '../../core/services/admin_service.dart';
-import '../../core/services/team_service.dart' show readableError;
+import '../../core/services/backend_call.dart' show readableError;
 import '../../theme.dart';
 import '../../widgets/echo_button.dart';
 import '../../widgets/echo_card.dart';
