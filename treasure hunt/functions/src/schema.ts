@@ -39,9 +39,6 @@ export type Direction = "forward" | "reverse";
 export type FinalDecision = "DESTROY" | "KEEP";
 export const FINAL_DECISIONS: readonly FinalDecision[] = ["DESTROY", "KEEP"];
 
-/** Answer grading modes supported by validate.ts. */
-export type AnswerMode = "exact" | "sequence" | "set" | "numeric";
-
 /** Facilitator action verbs (GAMEPLAY.md §10). */
 export type FacilitatorActionType =
   | "startGame"

@@ -12,8 +12,6 @@
 
 import type { ChapterView } from "../schema.js";
 
-export const CHAPTER_COUNT = 8;
-
 export const CHAPTERS: ChapterView[] = [
   { n: 1, title: "TODO_CHAPTER_TITLE_1", transcript: "TODO_CHAPTER_1", audioUrl: "TODO_CHAPTER_AUDIO_1" },
   { n: 2, title: "TODO_CHAPTER_TITLE_2", transcript: "TODO_CHAPTER_2", audioUrl: "TODO_CHAPTER_AUDIO_2" },

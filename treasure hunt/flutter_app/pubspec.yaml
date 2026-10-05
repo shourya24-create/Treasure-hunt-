@@ -20,7 +20,7 @@ dependencies:
   # Routing
   go_router:          ^14.6.1
 
-  # Navigation to field app
+  # Opens the scanner page (/field/scan)
   url_launcher:       ^6.3.1
 
   # State management
@@ -38,9 +38,6 @@ dependencies:
 
   # Remembers that this phone has passed the preflight check
   shared_preferences: ^2.3.2
-
-  # Icons
-  cupertino_icons:    ^1.0.8
 
 dev_dependencies:
   flutter_test:

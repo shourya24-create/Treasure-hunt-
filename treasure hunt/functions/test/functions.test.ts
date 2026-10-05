@@ -19,13 +19,12 @@ import { expect } from "chai";
 if (!getApps().length) {
   process.env.FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
   process.env.FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
-  process.env.FUNCTIONS_EMULATOR_HOST = "127.0.0.1:5001";
   initializeApp({ projectId: "echo-protocol-da7f7" });
 }
 
 const db = getFirestore();
 
-// Helper: call a Cloud Function via the Admin SDK's internal emulator HTTP endpoint.
+// Helper: call a callable on the Functions emulator over HTTP.
 async function callFunction<T = Record<string, unknown>>(
   name: string,
   data: unknown,

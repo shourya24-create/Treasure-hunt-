@@ -87,7 +87,6 @@ class _EchoProtocolAppState extends State<EchoProtocolApp> {
   Widget build(BuildContext context) => MultiProvider(
         providers: [
           Provider<AuthService>.value(value: _auth),
-          Provider<TeamService>.value(value: _teams),
           Provider<AdminService>.value(value: _admin),
           Provider<LocationService>.value(value: _location),
           ChangeNotifierProvider<GameClockProvider>.value(value: _clock),

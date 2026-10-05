@@ -17,8 +17,6 @@ class ChapterView {
     required this.audioUrl,
   });
 
-  static const total = 8;
-
   final int n;
   final String title;
   final String transcript;

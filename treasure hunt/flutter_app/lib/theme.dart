@@ -203,11 +203,6 @@ ThemeData buildEchoTheme() {
     borderSide: BorderSide(color: EchoColors.hairline),
   );
 
-  // Gold marks the active nav item — the one selected thing on a screen.
-  Color navColor(Set<WidgetState> states) => states.contains(WidgetState.selected)
-      ? EchoColors.highlightSelect
-      : EchoColors.textMuted;
-
   return ThemeData(
     colorScheme: colorScheme,
     useMaterial3: true,
@@ -261,19 +256,6 @@ ThemeData buildEchoTheme() {
       ),
     ),
     iconTheme: const IconThemeData(color: EchoColors.textSecondary),
-    navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: EchoColors.bgSurface,
-      surfaceTintColor: Colors.transparent,
-      indicatorColor: Colors.transparent,
-      overlayColor: const WidgetStatePropertyAll(Colors.transparent),
-      height: 68,
-      iconTheme: WidgetStateProperty.resolveWith(
-        (states) => IconThemeData(color: navColor(states), size: 24),
-      ),
-      labelTextStyle: WidgetStateProperty.resolveWith(
-        (states) => EchoText.label(color: navColor(states)),
-      ),
-    ),
     navigationRailTheme: NavigationRailThemeData(
       backgroundColor: EchoColors.bgSurface,
       indicatorColor: Colors.transparent,

@@ -78,7 +78,7 @@ describe("Firestore rules", () => {
         name: teamId,
         status: "playing",
         deviceUid,
-        points: 100,
+        step: 1,
       });
     });
   }
@@ -148,7 +148,7 @@ describe("Firestore rules", () => {
 
       const phone = testEnv.authenticatedContext("phoneA").firestore();
 
-      await assertFails(updateDoc(doc(phone, "teamViews", "T1"), { points: 800 }));
+      await assertFails(updateDoc(doc(phone, "teamViews", "T1"), { step: 7 }));
       await assertFails(updateDoc(doc(phone, "teams", "T1"), { points: 800 }));
       await assertFails(setDoc(doc(phone, "teams", "T13"), { id: "T13", deviceUid: "phoneA" }));
       await assertFails(setDoc(doc(phone, "game", "state"), { ended: false, paused: false }));
