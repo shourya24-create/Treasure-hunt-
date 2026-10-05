@@ -14,25 +14,17 @@
   font-family: "NotoSerif";
   src: url("/assets/assets/fonts/NotoSerif-Regular.ttf") format("truetype");
 }
-@font-face {
-  font-family: "JetBrainsMono";
-  src: url("/assets/assets/fonts/JetBrainsMono-Medium.ttf") format("truetype");
-}
 
+/* Only the tokens the scanner uses; the full set is in DESIGN_SYSTEM.md. */
 :root {
   --bg-void: #0b0c0a;
-  --bg-surface: #13150f;
-  --bg-surface-raised: #1b1e15;
   --hairline: #2a2e22;
   --text-primary: #c8d4b0;
   --text-secondary: #8a9478;
-  --text-muted: #5b5e4e;
   --text-headline: #e8eedc;
   --signal-green: #4f8f3f;
   --signal-green-bright: #7fd858;
-  --danger-red: #7a2320;
   --danger-red-bright: #b23a2e;
-  --warning-amber: #a6822e;
 }
 
 * {
@@ -71,11 +63,6 @@ body {
   margin: 0;
 }
 
-.mono {
-  font-family: "JetBrainsMono", monospace;
-  letter-spacing: 0.5px;
-}
-
 .button {
   display: block;
   width: 100%;
@@ -89,11 +76,6 @@ body {
   letter-spacing: 2.2px;
   text-transform: uppercase;
   cursor: pointer;
-}
-.button.primary {
-  background: var(--signal-green);
-  border-color: var(--signal-green-bright);
-  color: var(--text-headline);
 }
 
 /* ── Scanner ───────────────────────────────────────────────────────────────── */
@@ -182,7 +164,7 @@ body {
   color: var(--danger-red-bright);
 }
 
-/* ── Full-page notes: not logged in, no camera, the activity placeholder ──── */
+/* ── Full-page notes: not logged in, no camera ─────────────────────────────── */
 
 .page {
   height: 100%;
@@ -196,14 +178,6 @@ body {
 }
 .page .button {
   margin-top: 28px;
-}
-
-.card {
-  margin-top: 20px;
-  padding: 20px;
-  background: var(--bg-surface);
-  border: 1px solid var(--hairline);
-  border-radius: 2px;
 }
 
 [hidden] {

@@ -392,8 +392,6 @@ Flutter SCAN button   ──SCAN──▶ /field/scan
   the 7 image targets; `TARGET_CHECKPOINTS` in `field/config.js` maps target
   0–6 to CP2–CP8. The targets in the repo are **placeholder test sheets**
   (`field/targets/cp2.png` … `cp8.png`), to be replaced by the real scan objects.
-- `/field/activity` is the old activity address; it now redirects to the
-  Fragments tab.
 - Flutter **never** loads Three.js or MindAR, and never embeds them in an iframe
   (the camera in an iframe is unreliable on iPhone).
 - The field app **never** plays chapters or shows clues. That is Flutter's job.
