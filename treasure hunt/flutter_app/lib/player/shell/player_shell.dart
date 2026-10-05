@@ -3,7 +3,7 @@
 /// Four tabs (Home, Fragments, Archive, Profile) and the SCAN action in the
 /// middle (UI.md §3.1). Before the admin starts the game only Home and
 /// Profile open. The Gate Code and Reward views are "focus mode": they cover
-/// every tab and hide the bar, so nothing competes with them (UI.md §3.4).
+/// every tab and hide the bar, so nothing competes with them (UI.md §3.4a).
 /// A pause from the admin covers everything.
 library;
 

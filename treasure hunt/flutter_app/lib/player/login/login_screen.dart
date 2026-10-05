@@ -4,7 +4,7 @@
 /// team in owns it for the whole event; a second phone is refused
 /// (GAMEPLAY.md §4.1). The router sends a successful login onward.
 ///
-/// Phase 4: checks browser compatibility before allowing sign-in on web.
+/// Checks browser compatibility before allowing sign-in.
 library;
 
 import 'package:flutter/material.dart';

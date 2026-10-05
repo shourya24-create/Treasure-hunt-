@@ -3,7 +3,7 @@
  *
  * The scanner recognises one of the 7 scan objects and sends that
  * checkpoint's ID. If it is the team's next checkpoint, arrival is recorded
- * (time + phone) and the AR activity may open. Anything else returns
+ * (time + phone) and the fragment unlocks in the app. Anything else returns
  * { match: false } — "This is not your signal." — and reveals nothing.
  */
 

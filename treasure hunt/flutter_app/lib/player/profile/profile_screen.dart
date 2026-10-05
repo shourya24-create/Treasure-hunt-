@@ -1,7 +1,7 @@
 /// player/profile/profile_screen.dart — The Profile tab: who we are, this phone, and help.
 ///
 /// A team plays on one shared login, so the profile is the team's. No points
-/// and no leaderboard here (UI.md §3.7).
+/// and no leaderboard here (UI.md §3.7a).
 library;
 
 import 'package:flutter/material.dart';

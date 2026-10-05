@@ -90,7 +90,7 @@ class TeamProvider extends ChangeNotifier {
         !_game.closed(_gameClock.now);
   }
 
-  /// The one Mission view to show at `now`. A reload lands on the same one.
+  /// The stage the team is in at `now`. A reload lands on the same one.
   MissionStage stage(DateTime now) {
     final view = _view;
     if (!_resolved || view == null) return MissionStage.loading;

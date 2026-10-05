@@ -1,13 +1,13 @@
 /// player/fragments/fragments_screen.dart — The Fragments tab: all 8, one open.
 ///
 /// Fragments are numbered 1–8 by order of completion, never by checkpoint, so
-/// the list cannot reveal the route (UI.md §3.3). Only the open one shows
+/// the list cannot reveal the route (UI.md §3.6). Only the open one shows
 /// anything: its location clue, the object to scan, and the way into the
 /// scanner. Once the scan has matched, the same card unlocks and becomes the
-/// place the fragment is solved. The clue and hint belong to the team's next checkpoint, which the
-/// server picks from its route; the app never learns the route or the
-/// checkpoint's ID. Straight after CP1 there is no clue, because the paper
-/// already named the place (GAMEPLAY.md §4.2).
+/// place the fragment is solved. The clue and hint belong to the team's next
+/// checkpoint, which the server picks from its route; the app never learns
+/// the route or the checkpoint's ID. Straight after CP1 there is no clue,
+/// because the paper already named the place (GAMEPLAY.md §4.2).
 library;
 
 import 'package:flutter/material.dart';

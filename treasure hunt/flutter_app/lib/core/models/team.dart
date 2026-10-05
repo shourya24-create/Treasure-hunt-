@@ -105,7 +105,8 @@ class TeamView {
   /// Set after the gate code or a solve, until this phone has played it.
   final PendingReward? pendingReward;
 
-  /// Set once the scan object matched and the AR activity is open.
+  /// Set once the scan object matched: the fragment is unlocked and is
+  /// solved in the Fragments tab.
   final String? activeCheckpoint;
   final ObjectHintView? objectHint;
 

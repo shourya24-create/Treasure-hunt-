@@ -5,7 +5,7 @@
  * Wrong → { correct: false }; the team may retry. Right → +100, and the team
  * view then carries the reward to play in order: station reaction, the next
  * Echo chapter, then the location clue + object hint for the next checkpoint.
- * The Flutter app plays those; the field app only redirects back to it.
+ * The Flutter app sends the answer from its Fragments tab and plays those.
  *
  * The actual answer values live in content/answers.ts (all placeholders).
  * This function contains ZERO puzzle-specific logic.

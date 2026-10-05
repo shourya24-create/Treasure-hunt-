@@ -23,8 +23,9 @@ class EchoScaffold extends StatelessWidget {
   final Widget? bottomNavigationBar;
   final Widget? drawer;
 
-  /// Hero screens only: Waiting Room, Chapter playback, Return to Base,
-  /// Mission Complete, Game Over, Leaderboard projector mode.
+  /// Hero screens only: the login, the Home tab while waiting, returning to
+  /// base, complete or out of time, chapter playback, and the leaderboard's
+  /// projector mode (UI.md §2.4).
   final bool scanlines;
 
   @override

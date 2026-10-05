@@ -1,7 +1,8 @@
 /// widgets/code_field.dart — Large mono input. Gold when focused.
 ///
 /// Used where the field is the screen's single focus: the gate code, the
-/// login, and typed confirmations. On failure it flashes red once.
+/// fragment answer, the login, and typed confirmations. On failure it
+/// flashes red once.
 library;
 
 import 'package:flutter/material.dart';

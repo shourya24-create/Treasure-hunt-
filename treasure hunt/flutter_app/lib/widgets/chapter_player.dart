@@ -130,10 +130,10 @@ class _ChapterPlayerState extends State<ChapterPlayer>
     try {
       await player.play();
     } catch (_) {
-      // Browsers refuse sound that no tap asked for, which is always the case
-      // when the field app has just sent the team back to "/". The line IS
-      // loaded, so the play button stays and the team taps it. just_audio
-      // still reports "playing" after a refusal; pausing clears that.
+      // Browsers refuse sound that no tap asked for, for example after a
+      // reload while a reward is pending. The line IS loaded, so the play
+      // button stays and the team taps it. just_audio still reports
+      // "playing" after a refusal; pausing clears that.
       await _hush(player);
     }
   }

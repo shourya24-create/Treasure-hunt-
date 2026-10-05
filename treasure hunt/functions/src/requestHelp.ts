@@ -1,5 +1,5 @@
 /**
- * requestHelp.ts — "I NEED HELP" on the player's Team tab (UI.md §3.7).
+ * requestHelp.ts — "I NEED HELP" on the player's Profile tab (UI.md §3.7a).
  *
  * Raises an alert on the admin dashboard, which shows the team's last GPS
  * position. It stays raised until an admin resolves it.

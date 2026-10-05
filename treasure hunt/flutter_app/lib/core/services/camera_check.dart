@@ -1,6 +1,6 @@
 /// core/services/camera_check.dart — Asks the browser for camera access.
 ///
-/// The AR scanner at /field/ needs the camera. Asking here, before lights-off,
+/// The scanner at /field/scan needs the camera. Asking here, before lights-off,
 /// means the permission prompt is already answered when the team first scans.
 /// Web only, like the rest of this app.
 library;

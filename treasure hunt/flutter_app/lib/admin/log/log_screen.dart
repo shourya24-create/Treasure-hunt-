@@ -1,8 +1,9 @@
 /// admin/log/log_screen.dart — Everything that happened, newest first.
 ///
 /// Read-only. Team events come from each team's own record (gate code,
-/// arrivals, solves, final); admin events from the audit trail the
-/// facilitatorAction function writes. Filter by team and by action type.
+/// arrivals, solves, help requests); admin events, including the final desk,
+/// from the audit trail the facilitatorAction function writes. Filter by
+/// team and by action type.
 ///
 /// The audit trail also holds the commands the server refused. They stay in
 /// the log, marked REFUSED, so nobody reads them as something that happened.

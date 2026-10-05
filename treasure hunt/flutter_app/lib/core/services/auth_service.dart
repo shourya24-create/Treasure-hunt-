@@ -1,4 +1,4 @@
-/// services/auth_service.dart — Firebase Auth wrapper.
+/// core/services/auth_service.dart — Firebase Auth wrapper.
 library;
 
 import 'package:firebase_auth/firebase_auth.dart';

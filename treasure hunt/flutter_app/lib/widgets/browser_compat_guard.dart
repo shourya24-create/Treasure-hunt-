@@ -1,13 +1,11 @@
-/// widgets/browser_compat_guard.dart — Phase 4: browser compatibility check.
+/// widgets/browser_compat_guard.dart — Browser compatibility check.
 ///
-/// On Flutter Web, inspects the User-Agent for known-incompatible browsers:
+/// Inspects the User-Agent for known-incompatible browsers:
 /// - In-app browsers (Instagram, FBAN, FBAV, WhatsApp, Snapchat, TikTok)
 /// - iOS Safari < 15 (WebAssembly.instantiateStreaming not supported)
 ///
 /// If incompatible, shows a plain warning screen instead of silently failing
-/// when the user later tries to open the AR scanner.
-///
-/// On non-web platforms this widget is a transparent pass-through.
+/// when the user later tries to open the scanner.
 library;
 
 import 'package:flutter/foundation.dart';
@@ -17,7 +15,7 @@ import '../theme.dart';
 import 'echo_scaffold.dart';
 import 'status_dot.dart';
 
-// UA detection runs on web only; import conditionally.
+// UA detection needs dart:html. The app is web-only.
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html show window;
 

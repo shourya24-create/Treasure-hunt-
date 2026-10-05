@@ -4,10 +4,12 @@
  * These types mirror the exact shape stored in Firestore and follow
  * GAMEPLAY.md §9. No puzzle content lives here.
  *
- * Three collections:
+ * Collections:
  *   /teams/{teamId}      server truth. Facilitators read; nobody writes directly.
  *   /teamViews/{teamId}  player-safe projection of a team. Only that team's phone reads it.
  *   /game/state          event-wide switches (paused, ended).
+ *   /facilitators/{uid}  who may use the dashboard, and in which role.
+ *   /facilitatorCommands/{id}  audit trail of every admin action.
  */
 
 import type { Timestamp } from "firebase-admin/firestore";
@@ -216,7 +218,7 @@ export interface TeamView {
   step: number;
   /** Set after the gate code or a solve, until the phone has played it. */
   pendingReward: PendingReward | null;
-  /** The checkpoint whose AR activity is open, once the scan object matched. */
+  /** The checkpoint whose fragment is unlocked to solve, once the scan object matched. */
   activeCheckpoint: CampusCheckpointId | null;
   /** What to look for next. Null before CP1 and after the 7th checkpoint. */
   objectHint: ObjectHintView | null;
